@@ -1,0 +1,7 @@
+export const PAYMENT_CREDIT_PERCENTAGE = 0.3;
+export enum ECreditRates {
+  MIN_10000 = 0.08,
+  MIN_10001_MAX_100000 = 0.07,
+  MIN_100001_MAX_1000000 = 0.06,
+  MIN_1000001 = 0.05,
+}

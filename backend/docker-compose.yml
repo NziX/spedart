@@ -1,0 +1,15 @@
+services:
+  app:
+    image: spedart
+    container_name: spedart-backend
+    env_file:
+      - .env
+    ports:
+      - '${PORT}:${PORT}'
+    networks:
+      - spedart
+
+networks:
+  spedart:
+    name: spedart-net
+    driver: bridge
