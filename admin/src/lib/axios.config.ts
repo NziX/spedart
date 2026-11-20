@@ -6,12 +6,12 @@ import _, {
 
 const axios = _.create({
 	baseURL:
-		process.env.NODE_ENV === "development"
+		process.env.NEXT_PUBLIC_API_URL ||
+		(process.env.NODE_ENV === "development"
 			? "http://localhost:8000"
-			: "https://api.spedart.com",
+			: "https://spedart-api.onrender.com"),
 	headers: {
 		"Content-Type": "application/json",
-		// Authorization: `Bearer ${localStorage.getItem("sptAdToken")}`,
 	},
 });
 
