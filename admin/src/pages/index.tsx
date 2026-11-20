@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import useAuth from "@/hooks/useAuth";
 import { loginSchema } from "@/types/auth";
 import { notifications } from "@mantine/notifications";
+import { LuEye, LuEyeOff } from "react-icons/lu";
 import { FormEvent, useState } from "react";
 
 export default function Login() {
@@ -19,6 +20,7 @@ export default function Login() {
 
 	const [email, setEmail] = useState<string>();
 	const [password, setPassword] = useState<string>();
+	const [showPassword, setShowPassword] = useState(false);
 
 	const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -59,12 +61,18 @@ export default function Login() {
 						</div>
 						<div className="grid gap-2">
 							<Label htmlFor="password">Password</Label>
-							<Input
-								id="password"
-								type="password"
-								required
-								onChange={(e) => setPassword(e?.target?.value)}
-							/>
+							<div className="relative">
+								<Input
+									id="password"
+									type={showPassword ? "text" : "password"}
+									required
+									className="pr-10"
+									onChange={(e) => setPassword(e?.target?.value)}
+								/>
+								<button type="button" className="absolute inset-y-0 right-0 flex items-center px-2" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}>
+									{showPassword ? <LuEyeOff /> : <LuEye />}
+								</button>
+							</div>
 						</div>
 					</CardContent>
 					<CardFooter>
