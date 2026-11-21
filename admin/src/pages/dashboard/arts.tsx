@@ -4,6 +4,7 @@ import TableWrapper from "@/components/tables/TableWrapper";
 import axios from "@/lib/axios.config";
 import { Art } from "@/types";
 import useSWR from "swr";
+import Image from "next/image";
 
 const columns: Column<Art>[] = [
 	{
@@ -15,9 +16,11 @@ const columns: Column<Art>[] = [
 		key: "artist",
 		Element: ({ row }) => (
 			<div className="flex gap-x-3">
-				<img
+				<Image
 					src={row.artist.profilePicture}
 					alt={row.artist.firstName + " " + row.artist.lastName}
+					width={48}
+					height={48}
 					className="w-12 h-12"
 				/>
 				<span>
@@ -34,7 +37,13 @@ const columns: Column<Art>[] = [
 		title: "Thumbnail",
 		key: "thumbnail",
 		Element: ({ row }) => (
-			<img src={row.thumbnail} alt={row.title} className="w-12 h-12" />
+			<Image
+				src={row.thumbnail}
+				alt={row.title}
+				width={48}
+				height={48}
+				className="w-12 h-12"
+			/>
 		),
 	},
 	{

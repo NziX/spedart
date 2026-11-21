@@ -1,6 +1,6 @@
 import axios from "@/lib/axios.config";
 import { Artist } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -23,7 +23,7 @@ export default function PayArtistModal({ artist, onPay }: IPayArtistProps) {
 	const [remainingBalance, setRemainingBalance] = useState<number>(0);
 	const [totalPaid, setTotalPaid] = useState<number>(0);
 
-	const checkRemainingBalance = async () => {
+	const checkRemainingBalance = useCallback(async () => {
 		const { data } = await axios.get(
 			`supports/total-payments/by-artist/${artist._id}`
 		);
@@ -32,13 +32,13 @@ export default function PayArtistModal({ artist, onPay }: IPayArtistProps) {
 		setRemainingBalance(
 			(data?.totalPayments || 0) - (data?.paidAmount || 0)
 		);
-	};
+	}, [artist._id]);
 
 	useEffect(() => {
 		if (artist._id) {
 			checkRemainingBalance();
 		}
-	}, [artist._id]);
+	}, [artist._id, checkRemainingBalance]);
 
 	return (
 		<>
