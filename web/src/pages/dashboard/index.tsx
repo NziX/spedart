@@ -1,5 +1,8 @@
 import { showShareProfileState } from "@/atoms";
 import IncomeStats from "@/components/dashboard/IncomeStats";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import LikesAndPlaysStats from "@/components/dashboard/LikesAndPlays";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -28,6 +31,33 @@ export default function Overview() {
       } as { totalRevenue: number; percentageChange: number };
     },
   );
+
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  const handleWithdraw = async () => {
+    if (!artist) return;
+    const amount = Number(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      // you may replace with a toast notification
+      alert('Please enter a valid amount');
+      return;
+    }
+    try {
+      await axios.post('/api/payments/withdraw', {
+        amount,
+        artistId: artist._id,
+      });
+      // refresh revenue after withdrawal
+      refetchRevenue();
+      setShowWithdraw(false);
+      setWithdrawAmount('');
+      alert('Withdrawal successful');
+    } catch (e) {
+      console.error(e);
+      alert('Withdrawal failed');
+    }
+  };
 
   const { data: likesData, mutate: refetchLikes } = useSWR(
     "/arts/current-month-plays-analytics/by-artist/" + artist?._id,
