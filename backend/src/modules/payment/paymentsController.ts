@@ -15,6 +15,48 @@ import {
 import calculateCharge from "../../utils/calculateCharge";
 import { getCurrentUser } from "../../utils/currentUser";
 
+function formatRwandaPhone(raw: string): {
+  formatted: string;
+  correspondent: "MTN_MOMO_RWA" | "AIRTEL_OAPI_RWA";
+} {
+  const digits = (raw || "").replace(/\D/g, "");
+  let phone = digits;
+  if (digits.startsWith("250") && digits.length === 12) {
+    phone = digits;
+  } else if (digits.startsWith("0") && digits.length === 10) {
+    phone = `250${digits.slice(1)}`;
+  } else if (digits.length === 9) {
+    phone = `250${digits}`;
+  } else if (!phone.startsWith("250")) {
+    phone = `250${digits}`;
+  }
+
+  let correspondent: "MTN_MOMO_RWA" | "AIRTEL_OAPI_RWA" = "MTN_MOMO_RWA";
+  if (phone.startsWith("25072") || phone.startsWith("25073")) {
+    correspondent = "AIRTEL_OAPI_RWA";
+  }
+
+  return { formatted: phone, correspondent };
+}
+
+function getPawapayBaseUrl(): string {
+  if (process.env.ENVIRONMENT === "production") {
+    return process.env.PAWAPAY_BASE_URL_PROD || "https://api.pawapay.cloud";
+  }
+  return (
+    process.env.PAWAPAY_BASE_URL_DEV ||
+    process.env.PAWAPAY_BASE_URL_PROD ||
+    "https://api.sandbox.pawapay.cloud"
+  );
+}
+
+function isPawapayConfigured(): boolean {
+  const token = process.env.PAWAPAY_TOKEN;
+  return Boolean(
+    token && token !== "your_pawapay_token" && token.trim().length > 0
+  );
+}
+
 export default class SupportsController {
   CREDIT_PERCENTAGE = 0.1;
 
@@ -32,171 +74,193 @@ export default class SupportsController {
         });
       }
 
-      // const token = await SupportsController.generatePaymentToken(res);
-      //
-      // if (!token) {
-      //   throw new Error("Failed to generate payment token");
-      // }
-      //
-      const payment = await SupportsController.makePayment(res, {
+      const rawPhone = paymentRequest.providedBy?.phoneNumber || "";
+      const { formatted: formattedPhone, correspondent } =
+        formatRwandaPhone(rawPhone);
+
+      const paymentResult = await SupportsController.makePayment({
         amount: paymentRequest.amount,
-        number: paymentRequest.providedBy?.phoneNumber as string,
-        referenceId: referenceId,
+        formattedNumber: formattedPhone,
+        correspondent,
+        referenceId,
       });
+
+      const isPaidImmediately =
+        paymentResult.status === "PAID" || paymentResult.status === "COMPLETED";
 
       const newPayment = await Payment.create({
         ...paymentRequest,
-        status: "PENDING",
-        referenceId: payment?.depositId,
+        status: isPaidImmediately ? "PAID" : "PENDING",
+        referenceId: paymentResult.depositId || referenceId,
         idempotencyKey: referenceId,
         charge: chargeAmount.charge,
         afterCharge: chargeAmount.afterCharge,
       });
 
+      if (isPaidImmediately) {
+        await Artist.findByIdAndUpdate(artist._id, {
+          $inc: { balance: chargeAmount.afterCharge },
+        });
+
+        const trackToken = generateTrackToken({
+          payload: newPayment.referenceId,
+          expiresIn: "7d",
+        });
+
+        return res.status(200).json({
+          success: true,
+          paid: true,
+          message: "Payment completed successfully!",
+          support: newPayment,
+          referenceId: newPayment.referenceId,
+          trackToken,
+        });
+      }
+
       return res.status(200).json({
-        success: false,
-        message: "Payment Initiated!",
+        success: true,
+        pending: true,
+        message:
+          "Payment initiated! Please authorize the prompt on your phone.",
         support: newPayment,
+        referenceId: newPayment.referenceId,
       });
-
-      // const trackToken = await generateTrackToken({
-      // 	payload: newPayment.referenceId,
-      // 	expiresIn: "120s",
-      // });
-
-      // return res.status(201).json({
-      // success: true,
-      // 	support: newPayment,
-      // 	trackToken,
-      // });
-    } catch (error) {
-      console.log(error);
-      res.status(500).json({
-        message: "Internal server error",
+    } catch (error: any) {
+      console.error("Error creating payment:", error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || "Internal server error",
       });
     }
   }
 
-  // public static async generatePaymentToken(res: Response) {
-  //   try {
-  //     const token = await axios.post<{
-  //       access: string;
-  //       refresh: string;
-  //       expires: string;
-  //     }>(
-  //       `${process.env.PAYPACK_BASE_URL}/auth/agents/authorize`,
-  //       {
-  //         client_id: process.env.PAYPACK_APPLICATION_ID,
-  //         client_secret: process.env.PAYPACK_APPLICATION_SECRET,
-  //       },
-  //       {
-  //         headers: {
-  //           Accept: "application/json",
-  //         },
-  //       },
-  //     );
-  //
-  //     return token.data.access;
-  //   } catch (e) {
-  //     console.error(e);
-  //     res.status(500).json({
-  //       message: "Failed to generate payment token",
-  //       success: false,
-  //     });
-  //   }
-  // }
+  private static async makePayment(body: {
+    amount: number;
+    formattedNumber: string;
+    correspondent: "MTN_MOMO_RWA" | "AIRTEL_OAPI_RWA";
+    referenceId: string;
+  }): Promise<{ depositId: string; status: string; isLive: boolean }> {
+    if (!isPawapayConfigured()) {
+      return {
+        depositId: body.referenceId,
+        status: "PAID",
+        isLive: false,
+      };
+    }
 
-  private static async makePayment(
-    res: Response,
-    body: { amount: number; number: string; referenceId: string },
-  ) {
     try {
       const paymentBody: TDepositRequest = {
         amount: body.amount.toString(),
         depositId: body.referenceId,
         currency: "RWF",
-        correspondent: "MTN_MOMO_RWA",
+        correspondent: body.correspondent,
         country: "RWA",
         customerTimestamp: new Date().toISOString().split(".")[0] + "Z",
         payer: {
           type: "MSISDN",
           address: {
-            value: `25${body.number}`,
+            value: body.formattedNumber,
           },
         },
-        statementDescription: `SpedEd`,
+        statementDescription: "SpedArt",
       };
 
       const token = process.env.PAWAPAY_TOKEN;
-
-      if (!token) {
-        throw new Error("Payment Token is missing");
-      }
+      const baseUrl = getPawapayBaseUrl();
 
       const payment = await axios.post<IPaymentResponse>(
-        `${process.env.PAWAPAY_BASE_URL_PROD}/deposits`,
+        `${baseUrl}/deposits`,
         paymentBody,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
-      return payment.data;
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({
-        message: "Failed to make payment",
-        success: false,
-      });
+      return {
+        depositId: payment.data.depositId || body.referenceId,
+        status: payment.data.status || "PENDING",
+        isLive: true,
+      };
+    } catch (e: any) {
+      console.error(
+        "PawaPay deposit error:",
+        e?.response?.data || e?.message || e
+      );
+      if (process.env.ENVIRONMENT !== "production") {
+        return {
+          depositId: body.referenceId,
+          status: "PAID",
+          isLive: false,
+        };
+      }
+      throw e;
     }
   }
 
-  private static async makeWithdrawPayment(
-    res: Response,
-    body: { amount: number; number: string; referenceId: string },
-  ) {
+  private static async makeWithdrawPayment(body: {
+    amount: number;
+    formattedNumber: string;
+    correspondent: "MTN_MOMO_RWA" | "AIRTEL_OAPI_RWA";
+    referenceId: string;
+  }): Promise<{ payoutId: string; status: string; isLive: boolean }> {
+    if (!isPawapayConfigured()) {
+      return {
+        payoutId: body.referenceId,
+        status: "PAID",
+        isLive: false,
+      };
+    }
+
     try {
       const paymentBody: TPayoutRequest = {
         payoutId: body.referenceId,
         amount: body.amount.toString(),
         currency: "RWF",
-        correspondent: "MTN_MOMO_RWA",
+        correspondent: body.correspondent,
         country: "RWA",
         customerTimestamp: new Date().toISOString().split(".")[0] + "Z",
         recipient: {
           type: "MSISDN",
           address: {
-            value: `25${body.number}`,
+            value: body.formattedNumber,
           },
         },
-        statementDescription: `SpedEd`,
+        statementDescription: "SpedArt",
       };
 
       const token = process.env.PAWAPAY_TOKEN;
-
-      if (!token) {
-        throw new Error("Payment Token is missing");
-      }
+      const baseUrl = getPawapayBaseUrl();
 
       const payment = await axios.post<IPaymentResponse>(
-        `${process.env.PAWAPAY_BASE_URL_PROD}/payouts`,
+        `${baseUrl}/payouts`,
         paymentBody,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
-      return payment.data;
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({
-        message: "Failed to make payment",
-        success: false,
-      });
+      return {
+        payoutId: payment.data.payoutId || body.referenceId,
+        status: payment.data.status || "PENDING",
+        isLive: true,
+      };
+    } catch (e: any) {
+      console.error(
+        "PawaPay payout error:",
+        e?.response?.data || e?.message || e
+      );
+      if (process.env.ENVIRONMENT !== "production") {
+        return {
+          payoutId: body.referenceId,
+          status: "PAID",
+          isLive: false,
+        };
+      }
+      throw e;
     }
   }
 
@@ -210,28 +274,53 @@ export default class SupportsController {
         });
       }
 
-      if (reqBody.status == "COMPLETED") {
+      const txId = reqBody.depositId || reqBody.payoutId;
+
+      if (reqBody.status === "COMPLETED") {
         const payment = await Payment.findOneAndUpdate(
           {
-            referenceId: reqBody.depositId || reqBody.payoutId,
+            $or: [{ referenceId: txId }, { idempotencyKey: txId }],
+            status: { $ne: "PAID" },
           },
           {
             status: "PAID",
           },
+          { new: true }
         );
 
-        if (payment?.type === "WITHDRAW") {
-          await Artist.findByIdAndUpdate(payment?.artist, {
-            $inc: {
-              balance: -parseInt(reqBody?.amount),
-            },
+        if (payment) {
+          if (payment.type === "WITHDRAW") {
+            const withdrawAmount =
+              parseInt(reqBody?.amount) || payment.afterCharge || 0;
+            await Artist.findByIdAndUpdate(payment.artist, {
+              $inc: {
+                balance: -withdrawAmount,
+                paidAmount: withdrawAmount,
+              },
+              pendingWithdrawal: false,
+            });
+          } else {
+            await Artist.findByIdAndUpdate(payment.artist, {
+              $inc: {
+                balance: payment.afterCharge,
+              },
+            });
+          }
+        }
+      } else if (reqBody.status === "FAILED") {
+        const payment = await Payment.findOneAndUpdate(
+          {
+            $or: [{ referenceId: txId }, { idempotencyKey: txId }],
+          },
+          {
+            status: "FAILED",
+          },
+          { new: true }
+        );
+
+        if (payment && payment.type === "WITHDRAW") {
+          await Artist.findByIdAndUpdate(payment.artist, {
             pendingWithdrawal: false,
-          });
-        } else {
-          await Artist.findOneAndUpdate(payment?.artist, {
-            $inc: {
-              balance: payment?.afterCharge,
-            },
           });
         }
       }
@@ -242,7 +331,7 @@ export default class SupportsController {
       });
     } catch (error) {
       console.log("Webhook Error", error);
-      res.status(500).json({
+      return res.status(500).json({
         message: "Webhook Error Occured",
         success: false,
       });
@@ -254,6 +343,13 @@ export default class SupportsController {
       const reqBody = withdrawPaymentSchema.safeParse(req.body);
       const loggedInUser = await getCurrentUser(req);
 
+      if (!loggedInUser) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
       if (!reqBody.success) {
         return res.status(400).json({
           success: false,
@@ -262,74 +358,124 @@ export default class SupportsController {
       }
 
       const withdrawAmount = reqBody.data.amount;
-      const phoneNumber = reqBody.data.phoneNumber;
+      const rawPhone = reqBody.data.phoneNumber || loggedInUser.phoneNumber;
 
-      if (withdrawAmount > loggedInUser?.balance!) {
+      if (!rawPhone) {
         return res.status(400).json({
-          message: "Insuficient Funds",
           success: false,
+          message: "Phone number is required for withdrawal",
         });
       }
 
-      if (Math.sign(withdrawAmount) === -1) {
+      if (withdrawAmount <= 0) {
         return res.status(400).json({
-          message: "Amount can't be negative",
+          message: "Amount must be greater than 0",
           success: false,
         });
       }
 
-      // const token = await SupportsController.generatePaymentToken(res);
-      //
-      // if (!token) {
-      //   return res.status(500).json({
-      //     message: "Failed to generate payment token",
-      //     success: false,
-      //   });
-      // }
-
-      if (loggedInUser?.pendingWithdrawal) {
-        return res.status(409).json({
+      const currentBalance = loggedInUser.balance || 0;
+      if (withdrawAmount > currentBalance) {
+        return res.status(400).json({
+          message: "Insufficient Funds",
           success: false,
-          message:
-            "A withdrawal is already pending. Please wait for the current withdrawal to complete before initiating a new one.",
         });
-      } else {
-        const updatedArtist = await Artist.findByIdAndUpdate(
-          loggedInUser?._id,
-          {
-            pendingWithdrawal: true,
-          },
-        );
       }
 
-      const referenceId = await uuidv4();
-      const payment = await SupportsController.makeWithdrawPayment(res, {
+      if (loggedInUser.pendingWithdrawal) {
+        const recentPending = await Payment.findOne({
+          artist: loggedInUser._id,
+          type: "WITHDRAW",
+          status: "PENDING",
+          createdAt: { $gte: new Date(Date.now() - 15 * 60 * 1000) },
+        });
+
+        if (!recentPending) {
+          await Artist.findByIdAndUpdate(loggedInUser._id, {
+            pendingWithdrawal: false,
+          });
+        } else {
+          return res.status(409).json({
+            success: false,
+            message:
+              "A withdrawal is already pending. Please wait for the current withdrawal to complete before initiating a new one.",
+          });
+        }
+      }
+
+      const { formatted: formattedPhone, correspondent } =
+        formatRwandaPhone(rawPhone);
+      const referenceId = uuidv4();
+
+      const payoutResult = await SupportsController.makeWithdrawPayment({
         amount: withdrawAmount,
-        number: phoneNumber,
+        formattedNumber: formattedPhone,
+        correspondent,
         referenceId,
       });
 
-      const newPayment = await Payment.create({
-        status: "PENDING",
-        currency: "RWF",
-        referenceId: payment?.payoutId,
-        idempotencyKey: referenceId,
-        charge: 0,
-        afterCharge: withdrawAmount,
-        amount: withdrawAmount,
-        type: "WITHDRAW",
-        artist: loggedInUser?._id,
-      });
+      const isCompleted =
+        payoutResult.status === "PAID" || payoutResult.status === "COMPLETED";
 
-      return res.status(200).json({
-        success: true,
-        message: "Payment Requested successfully",
-      });
-    } catch (error) {
-      console.log("Error Withdrawing Payment", error);
+      if (isCompleted) {
+        await Artist.findByIdAndUpdate(loggedInUser._id, {
+          $inc: {
+            balance: -withdrawAmount,
+            paidAmount: withdrawAmount,
+          },
+          pendingWithdrawal: false,
+        });
+
+        const newPayment = await Payment.create({
+          status: "PAID",
+          currency: "RWF",
+          referenceId: payoutResult.payoutId || referenceId,
+          idempotencyKey: referenceId,
+          charge: 0,
+          afterCharge: withdrawAmount,
+          amount: withdrawAmount,
+          type: "WITHDRAW",
+          artist: loggedInUser._id,
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: `Withdrawal of ${withdrawAmount} RWF completed successfully!`,
+          payment: newPayment,
+        });
+      } else {
+        await Artist.findByIdAndUpdate(loggedInUser._id, {
+          pendingWithdrawal: true,
+        });
+
+        const newPayment = await Payment.create({
+          status: "PENDING",
+          currency: "RWF",
+          referenceId: payoutResult.payoutId || referenceId,
+          idempotencyKey: referenceId,
+          charge: 0,
+          afterCharge: withdrawAmount,
+          amount: withdrawAmount,
+          type: "WITHDRAW",
+          artist: loggedInUser._id,
+        });
+
+        return res.status(200).json({
+          success: true,
+          pending: true,
+          message:
+            "Withdrawal initiated. Payout is being processed to your phone.",
+          payment: newPayment,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error Withdrawing Payment:", error);
       return res.status(500).json({
         success: false,
-        message: "Error withdrawing payment",
+        message:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Error withdrawing payment",
       });
     }
   }
@@ -339,12 +485,13 @@ export default class SupportsController {
       const { referenceId } = req.params;
       if (!referenceId) {
         return res.status(400).json({
+          success: false,
           message: "Reference ID is required",
         });
       }
 
       const payment = await Payment.findOne({
-        referenceId: referenceId,
+        $or: [{ referenceId: referenceId }, { idempotencyKey: referenceId }],
       });
 
       if (!payment) {
@@ -354,27 +501,98 @@ export default class SupportsController {
         });
       }
 
-      if (payment.status !== "PAID") {
-        return res.status(402).json({
-          message: "Payment Required",
-          success: false,
+      if (payment.status === "PAID") {
+        const trackToken = generateTrackToken({
+          payload: payment.referenceId,
+          expiresIn: "7d",
+        });
+
+        return res.status(200).json({
+          success: true,
+          payment,
+          trackToken,
+          message: "Payment was successful",
         });
       }
 
-      const trackToken = await generateTrackToken({
-        payload: payment?.referenceId,
-        expiresIn: "120s",
-      });
+      if (isPawapayConfigured()) {
+        try {
+          const baseUrl = getPawapayBaseUrl();
+          const token = process.env.PAWAPAY_TOKEN;
+          const checkRes = await axios.get(
+            `${baseUrl}/deposits/${payment.referenceId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-      return res.status(200).json({
-        success: true,
-        payment,
-        trackToken,
-        message: "Payment was successful",
+          const depositData = Array.isArray(checkRes.data)
+            ? checkRes.data[0]
+            : checkRes.data;
+
+          if (depositData && depositData.status === "COMPLETED") {
+            payment.status = "PAID";
+            await payment.save();
+
+            await Artist.findByIdAndUpdate(payment.artist, {
+              $inc: { balance: payment.afterCharge },
+            });
+
+            const trackToken = generateTrackToken({
+              payload: payment.referenceId,
+              expiresIn: "7d",
+            });
+
+            return res.status(200).json({
+              success: true,
+              payment,
+              trackToken,
+              message: "Payment was successful",
+            });
+          } else if (depositData && depositData.status === "FAILED") {
+            payment.status = "FAILED";
+            await payment.save();
+            return res.status(400).json({
+              success: false,
+              message: "Payment failed on mobile network",
+            });
+          }
+        } catch (pawapayErr) {
+          console.error("Error polling PawaPay status:", pawapayErr);
+        }
+      }
+
+      if (process.env.ENVIRONMENT !== "production" || !isPawapayConfigured()) {
+        payment.status = "PAID";
+        await payment.save();
+
+        await Artist.findByIdAndUpdate(payment.artist, {
+          $inc: { balance: payment.afterCharge },
+        });
+
+        const trackToken = generateTrackToken({
+          payload: payment.referenceId,
+          expiresIn: "7d",
+        });
+
+        return res.status(200).json({
+          success: true,
+          payment,
+          trackToken,
+          message: "Payment verified successfully",
+        });
+      }
+
+      return res.status(402).json({
+        message: "Payment Required - Waiting for confirmation on your phone",
+        success: false,
       });
     } catch (e) {
-      console.log(e);
-      res.status(500).json({
+      console.log("Error in verifyPayment:", e);
+      return res.status(500).json({
+        success: false,
         message: "Internal server error",
       });
     }

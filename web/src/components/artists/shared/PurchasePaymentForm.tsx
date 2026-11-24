@@ -33,7 +33,6 @@ export function PurchasePaymentForm({
 }: IPaymentFormProps) {
   const [loading, setLoading] = useState(false);
   const [_, setGlobalPaymentStatus] = useRecoilState(paymentState);
-  const referenceId = localStorage.getItem("referenceId");
   const form = useForm<TSupportPaymentFields>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
@@ -48,8 +47,9 @@ export function PurchasePaymentForm({
 
   const verifyPayment = async () => {
     setLoading(true);
+    const activeRefId = localStorage.getItem("referenceId");
 
-    if (!referenceId) {
+    if (!activeRefId) {
       setLoading(false);
       return notifications.show({
         title: "Payment not verified",
@@ -58,65 +58,88 @@ export function PurchasePaymentForm({
       });
     }
 
-    await axios
-      .get(`/supports/verify-payment/${referenceId}`)
-      .then((res) => {
+    try {
+      const res = await axios.get(`/supports/verify-payment/${activeRefId}`);
+      if (res.data?.success && res.data?.trackToken) {
         notifications.show({
           title: "Payment verified",
-          message: "Your payment has been successfully verified",
+          message: "Your payment has been successfully verified!",
           color: "green",
         });
-        localStorage.setItem("streamToken", res?.data?.trackToken);
+        localStorage.setItem("streamToken", res.data.trackToken);
         setGlobalPaymentStatus("SUCCESSFUL");
         setLoading(false);
         onSuccess();
-      })
-      .catch((error) => {
-        console.log(error);
+      } else {
         notifications.show({
-          title: "Payment verification failed",
-          message: "Payment verification error",
-          color: "red",
+          title: "Payment pending",
+          message:
+            res.data?.message ||
+            "Payment is still pending. Please confirm on your phone.",
+          color: "yellow",
         });
         setLoading(false);
+      }
+    } catch (error: any) {
+      console.log(error);
+      notifications.show({
+        title: "Payment verification failed",
+        message: error?.response?.data?.message || "Payment verification error",
+        color: "red",
       });
+      setLoading(false);
+    }
   };
 
   const onSubmit = async (data: TSupportPaymentFields) => {
     setLoading(true);
-    await axios
-      .post("/supports", data)
-      .then((res) => {
-        if (!res.data.success) {
-          localStorage.setItem("referenceId", res.data.support.referenceId);
-          setLoading(false);
-          return notifications.show({
-            title: "Payment Requested",
-            message: "Finalize Payment to Proceed",
-            color: "yellow",
-          });
-        }
+    try {
+      const res = await axios.post("/supports", data);
+      if (!res.data.success) {
+        setLoading(false);
+        return notifications.show({
+          title: "Payment Failed",
+          message: res.data?.message || "Could not initiate payment",
+          color: "red",
+        });
+      }
 
+      const refId =
+        res.data.referenceId || res.data.support?.referenceId;
+      if (refId) {
+        localStorage.setItem("referenceId", refId);
+      }
+
+      if (res.data.trackToken) {
         notifications.show({
           title: "Payment successful",
-          message: "Your payment has been successfully processed",
+          message: "Payment processed successfully! Loading song...",
           color: "green",
         });
-        localStorage.setItem("streamToken", res?.data?.trackToken);
+        localStorage.setItem("streamToken", res.data.trackToken);
         setGlobalPaymentStatus("SUCCESSFUL");
         setLoading(false);
         onSuccess();
-      })
-      .catch((error) => {
-        console.log(error);
-        setGlobalPaymentStatus("FAILED");
+      } else {
         notifications.show({
-          title: "Payment failed",
-          message: "Payment error",
-          color: "red",
+          title: "Payment Initiated",
+          message:
+            res.data.message ||
+            "Please approve the prompt on your phone, then click Verify.",
+          color: "blue",
         });
         setLoading(false);
+      }
+    } catch (error: any) {
+      console.log(error);
+      setGlobalPaymentStatus("FAILED");
+      notifications.show({
+        title: "Payment failed",
+        message: error?.response?.data?.message || "Payment error",
+        color: "red",
       });
+      setLoading(false);
+    }
   };
 
   return (

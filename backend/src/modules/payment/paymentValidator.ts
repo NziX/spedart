@@ -7,7 +7,7 @@ const paymentSchema = z
     amount: z.number().int().positive(),
     currency: z.enum(['USD', 'RWF', 'EUR']),
     type: z.enum(['SUPPORT', 'PURCHASE']),
-    status: z.enum(['PENDING', 'RECEIVED', 'PAID']),
+    status: z.enum(['PENDING', 'RECEIVED', 'PAID', 'FAILED']),
     providedBy: z
       .object({
         name: z.string().optional(),

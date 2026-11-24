@@ -10,7 +10,7 @@ export type TDepositRequest = {
   amount: string; // Numeric value as string
   currency: "RWF"; // ISO 4217 currency code
   country: "RWA"; // ISO 3166-1 alpha-3 country code
-  correspondent: "MTN_MOMO_RWA"; // Specific financial service provider
+  correspondent: "MTN_MOMO_RWA" | "AIRTEL_OAPI_RWA"; // Specific financial service provider
   payer: {
     type: "MSISDN"; // Mobile Subscriber Integrated Services Digital Number
     address: {
@@ -26,7 +26,7 @@ export type TPayoutRequest = {
   amount: string; // Numeric value as string
   currency: "RWF"; // ISO 4217 currency code
   country: "RWA"; // ISO 3166-1 alpha-3 country code
-  correspondent: "MTN_MOMO_RWA"; // Specific financial service provider
+  correspondent: "MTN_MOMO_RWA" | "AIRTEL_OAPI_RWA"; // Specific financial service provider
   recipient: {
     type: "MSISDN"; // Mobile Subscriber Integrated Services Digital Number
     address: {

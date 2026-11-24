@@ -13,6 +13,9 @@ export default function AritstBalanceModal() {
   const [show, setShow] = useRecoilState(showBalanceState);
   const [amount, setAmount] = useState<number>(0);
   const { artist } = useAuth();
+  const [payoutPhone, setPayoutPhone] = useState<string>(
+    artist?.phoneNumber || "",
+  );
   const [processPending, setProcessPending] = useState(false);
 
   const { data: balanceInformation, mutate: refetchBalance } = useSWR(
@@ -26,13 +29,19 @@ export default function AritstBalanceModal() {
     },
   );
 
-  const handleSubmit = async (amount: number) => {
+  useEffect(() => {
+    if (artist?.phoneNumber && !payoutPhone) {
+      setPayoutPhone(artist.phoneNumber);
+    }
+  }, [artist?.phoneNumber, payoutPhone]);
+
+  const handleSubmit = async () => {
     setProcessPending(true);
-    if (amount < 0) {
+    if (amount <= 0) {
       setProcessPending(false);
       return notifications.show({
         title: "Invalid Amount",
-        message: "Amount can't be less than 0.",
+        message: "Amount must be greater than 0.",
         color: "orange",
       });
     }
@@ -46,7 +55,8 @@ export default function AritstBalanceModal() {
       });
     }
 
-    if (!artist?.phoneNumber) {
+    const phoneToUse = payoutPhone.trim() || artist?.phoneNumber;
+    if (!phoneToUse) {
       setProcessPending(false);
       return notifications.show({
         title: "Invalid Phone Number",
@@ -56,20 +66,29 @@ export default function AritstBalanceModal() {
     }
 
     try {
-      await axios
-        .post("/supports/withdraw", {
-          amount: amount,
-          phoneNumber: artist?.phoneNumber,
-        })
-        .then((res) => {
-          refetchBalance();
-        });
+      const res = await axios.post("/supports/withdraw", {
+        amount: amount,
+        phoneNumber: phoneToUse,
+      });
+
+      notifications.show({
+        title: "Withdrawal Submitted",
+        message:
+          res.data?.message ||
+          "Your withdrawal has been processed successfully.",
+        color: "green",
+      });
+
+      await refetchBalance();
+      setProcessPending(false);
+      setShow(null);
     } catch (error: any) {
       setProcessPending(false);
       notifications.show({
         title: "Error Withdrawing",
         message:
-          error?.response?.data?.message ?? "An error occured when withdrawing",
+          error?.response?.data?.message ??
+          "An error occurred when withdrawing",
         color: "orange",
       });
     }
@@ -88,28 +107,37 @@ export default function AritstBalanceModal() {
       </div>
       <div className="flex flex-col gap-y-4 space-y-5 mb-10">
         <div className="w-full p-2 border rounded-sm gap-4">
-          <div className="mb-2">
-            <p className="font-medium">Current Balance</p>
-            <p className="text-green-600 font-medium">
+          <div className="mb-4">
+            <p className="font-medium text-sm text-gray-600">Current Balance</p>
+            <p className="text-green-600 font-bold text-2xl">
               {balanceInformation?.balance ?? 0} RWF
             </p>
           </div>
           <div className="space-y-2 mb-4">
-            <p>Enter amount to withdraw</p>
+            <p className="text-sm font-medium">Enter amount to withdraw (RWF)</p>
             <Input
               name="amount"
               placeholder="Withdrawal amount"
               type="number"
+              value={amount || ""}
               onChange={(e) => setAmount(Number(e?.target?.value))}
-              defaultValue={balanceInformation?.balance ?? 0}
+            />
+          </div>
+          <div className="space-y-2 mb-4">
+            <p className="text-sm font-medium">Mobile Money Number</p>
+            <Input
+              name="phoneNumber"
+              placeholder="07xxxxxxxx"
+              value={payoutPhone}
+              onChange={(e) => setPayoutPhone(e?.target?.value)}
             />
           </div>
           <Button
-            onClick={() => handleSubmit(amount)}
+            onClick={handleSubmit}
             className="p-2 w-full rounded-sm text-white"
             disabled={processPending}
           >
-            Withdraw
+            {processPending ? "Processing..." : "Withdraw Funds"}
           </Button>
         </div>
         <div className="w-full flex items-center gap-x-3"></div>

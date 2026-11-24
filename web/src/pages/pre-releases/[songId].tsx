@@ -44,7 +44,7 @@ export default function PreReleaseView() {
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [payment] = useRecoilState(paymentState);
+  const [payment, setPayment] = useRecoilState(paymentState);
   const [liked, setLiked] = useState<boolean>(false);
   const { customer, refetchCustomer } = useAuth();
   const [progress, setProgress] = useState(0);
@@ -53,12 +53,22 @@ export default function PreReleaseView() {
   const pausedAtRef = useRef<number>(0);
   const isDraggingRef = useRef(false);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("streamToken")) {
+      setPayment("SUCCESSFUL");
+    }
+  }, [setPayment]);
+
   const fetchAndDecryptStream = useCallback(async (url: string) => {
+    const userToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const headers: Record<string, string> = {};
+    if (userToken) {
+      headers["Authorization"] = `Bearer ${userToken}`;
+    }
+
     const response = await axios.get(url, {
       responseType: "arraybuffer",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
+      headers,
     });
 
     if (response.status !== 200) {

@@ -2,13 +2,13 @@ import jwt = require('jsonwebtoken');
 
 export const generateTrackToken = ({
   payload,
-  expiresIn,
+  expiresIn = '7d',
 }: {
   payload: any;
-  expiresIn: string;
+  expiresIn?: string;
 }) => {
   return jwt.sign({ payload }, process.env.SECRET as string, {
-    expiresIn: '100000000080s',
+    expiresIn,
   });
 };
 
