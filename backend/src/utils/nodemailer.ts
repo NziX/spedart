@@ -20,7 +20,58 @@ export const sendEmail = async ({
   const fromName = process.env.EMAIL_NAME || 'SpedArt';
   const fromAddress = `"${fromName}" <${emailUser}>`;
 
-  // 1. If SMTP / Gmail credentials are configured (preferred: sends directly from supportmainspedart@gmail.com)
+  // 1. If Resend HTTPS API Key is configured (Fast HTTPS API on port 443 - instantaneous, never blocked by host firewalls)
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'SpedArt <onboarding@resend.dev>';
+      console.log(`[Dispatching email via Resend to ${to}...]`);
+      const resendRes = await axios.post(
+        'https://api.resend.com/emails',
+        {
+          from: fromEmail,
+          to: [to],
+          reply_to: emailUser,
+          subject: subject,
+          html: `
+            <div style="font-family: Arial, Helvetica, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 10px; background-color: #ffffff;">
+              <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #f3f4f6;">
+                <h1 style="color: #4F46E5; margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 1px;">SpedArt</h1>
+                <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0 0;">Artist Platform & Pre-Releases</p>
+              </div>
+              <div style="color: #374151; font-size: 15px; line-height: 1.6; padding-top: 20px;">
+                ${body}
+              </div>
+              <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 30px 0 16px 0;" />
+              <div style="text-align: center; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+                <p style="margin: 0;">Sent by <strong>SpedArt</strong> &bull; <a href="mailto:${emailUser}" style="color: #4F46E5; text-decoration: none;">${emailUser}</a></p>
+                <p style="margin: 4px 0 0 0;">This is an automated message. If you did not make this request, please disregard it.</p>
+              </div>
+            </div>
+          `,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY.trim()}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 8000,
+        }
+      );
+      console.log(`[Email Sent via Resend API to ${to}]:`, resendRes.data?.id);
+      return { sent: true };
+    } catch (err: any) {
+      const apiErr = err?.response?.data?.message || err?.message || 'Resend API delivery error';
+      console.error('Resend API Error:', err?.response?.data || err?.message);
+      if (!emailPass) {
+        return {
+          sent: false,
+          error: apiErr,
+        };
+      }
+    }
+  }
+
+  // 2. If SMTP / Gmail credentials are configured
   if (emailPass) {
     try {
       const isGmail = emailUser.toLowerCase().includes('gmail.com');
@@ -33,6 +84,9 @@ export const sendEmail = async ({
               user: emailUser,
               pass: emailPass,
             },
+            connectionTimeout: 4000,
+            greetingTimeout: 4000,
+            socketTimeout: 6000,
             tls: {
               rejectUnauthorized: false,
             },
@@ -45,6 +99,9 @@ export const sendEmail = async ({
               user: emailUser,
               pass: emailPass,
             },
+            connectionTimeout: 4000,
+            greetingTimeout: 4000,
+            socketTimeout: 6000,
             tls: {
               rejectUnauthorized: false,
             },
@@ -99,53 +156,6 @@ export const sendEmail = async ({
       return {
         sent: false,
         error: userFriendlyError,
-      };
-    }
-  }
-
-  // 2. If Resend HTTPS API Key is configured
-  if (process.env.RESEND_API_KEY) {
-    try {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'SpedArt <onboarding@resend.dev>';
-      await axios.post(
-        'https://api.resend.com/emails',
-        {
-          from: fromEmail,
-          to: [to],
-          reply_to: emailUser,
-          subject: subject,
-          html: `
-            <div style="font-family: Arial, Helvetica, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 10px; background-color: #ffffff;">
-              <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #f3f4f6;">
-                <h1 style="color: #4F46E5; margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 1px;">SpedArt</h1>
-                <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0 0;">Artist Platform & Pre-Releases</p>
-              </div>
-              <div style="color: #374151; font-size: 15px; line-height: 1.6; padding-top: 20px;">
-                ${body}
-              </div>
-              <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 30px 0 16px 0;" />
-              <div style="text-align: center; color: #9ca3af; font-size: 12px; line-height: 1.5;">
-                <p style="margin: 0;">Sent by <strong>SpedArt</strong> &bull; <a href="mailto:${emailUser}" style="color: #4F46E5; text-decoration: none;">${emailUser}</a></p>
-                <p style="margin: 4px 0 0 0;">This is an automated message. If you did not make this request, please disregard it.</p>
-              </div>
-            </div>
-          `,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      console.log(`[Email Sent via Resend API to ${to}]`);
-      return { sent: true };
-    } catch (err: any) {
-      const apiErr = err?.response?.data?.message || err?.message || 'Resend API delivery error';
-      console.error('Resend API Error:', err?.response?.data || err?.message);
-      return {
-        sent: false,
-        error: apiErr,
       };
     }
   }

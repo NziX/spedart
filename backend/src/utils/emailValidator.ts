@@ -32,9 +32,14 @@ export async function validateEmailExistence(
 
   const domain = parts[1];
 
-  // 2. DNS MX records check to verify domain exists and receives mail
+  // 2. DNS MX records check to verify domain exists and receives mail (with a 2.5s safety timeout)
   try {
-    const mxRecords = await resolveMx(domain);
+    const mxPromise = resolveMx(domain);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('DNS query timed out')), 2500)
+    );
+    const mxRecords = (await Promise.race([mxPromise, timeoutPromise])) as any;
+
     if (!mxRecords || mxRecords.length === 0) {
       return {
         valid: false,
@@ -49,7 +54,7 @@ export async function validateEmailExistence(
         message: `The email domain "${domain}" does not exist. Please check your email address.`,
       };
     }
-    // If DNS query times out or local DNS lookup is restricted, allow it through to SMTP attempt
+    // If DNS query times out or local DNS lookup is restricted, allow it through to email attempt
     return { valid: true };
   }
 }
