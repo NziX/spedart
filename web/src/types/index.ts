@@ -28,6 +28,9 @@ export interface IArtist extends Base {
 	socials?: Socials;
 	bio?: string;
 	paymentInfo?: PaymentInfo;
+	status?: "pending" | "approved" | "rejected";
+	rejectionReason?: string;
+	reviewedAt?: string;
 }
 
 export interface IPreRelease extends Base {

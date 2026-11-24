@@ -1,31 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 import TokenService from '../modules/token/tokenService';
-import { getCurrentUser } from '../utils/currentUser';
+import { requireApprovedArtist } from './requireApprovedArtist';
 
-const artistAuthValidator = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const authHeader = req.headers.authorization as string;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  try {
-    const currentUser = getCurrentUser(req);
-
-    if (!currentUser) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-  } catch (error) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  next();
-};
+const artistAuthValidator = requireApprovedArtist;
 
 const trackAuthValidator = async (
   req: Request,
@@ -93,4 +71,4 @@ const adminAuthValidator = (
   next();
 };
 
-export { artistAuthValidator, adminAuthValidator, trackAuthValidator };
+export { artistAuthValidator, requireApprovedArtist, adminAuthValidator, trackAuthValidator };

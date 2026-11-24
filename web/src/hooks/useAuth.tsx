@@ -68,8 +68,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		try {
 			const { data } = await axios.get(`/artists/me`);
 			setArtist(data.artist);
-		} catch (error) {
+		} catch (error: any) {
 			console.log(error);
+			if (error?.response?.status === 403) {
+				notifications.show({
+					message:
+						error?.response?.data?.message ??
+						"Your account is awaiting admin approval.",
+					color: "red",
+				});
+			}
 			logout(true);
 		} finally {
 			setInitialLoading(false);
@@ -96,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		const token = localStorage.getItem("sptToken");
 		verifyCurrentCustomer();
 		if (token) {
-			// check if user is valid json
 			if (token === "undefined") {
 				router.push("/login");
 				return;
@@ -129,7 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			router.push("/dashboard");
 		} catch (error: any) {
 			console.log(error);
-			if (error?.response?.status === 400) {
+			if (
+				error?.response?.status === 400 ||
+				error?.response?.status === 403
+			) {
 				notifications.show({
 					message:
 						error?.response?.data?.message ?? "An error occurred",
@@ -153,42 +163,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				...artist,
 			});
 			notifications.show({
-				message: "Signup successful",
+				title: "Registration Received",
+				message:
+					data?.message || "Your account is awaiting admin approval.",
 				color: "teal",
 			});
 			setArtist(data.artist);
-			localStorage.setItem(UIDHASH, JSON.stringify(data.artist));
-			localStorage.setItem("sptToken", data?.token);
+			if (data?.token) {
+				localStorage.setItem("sptToken", data.token);
+			}
 			setTimeout(() => {
-				setActiveOnboardingStep("artist_journey");
-			}, 500);
+				setActiveOnboardingStep("awaiting_approval");
+			}, 300);
 		} catch (error: any) {
 			console.log(error);
-			if (error?.response?.status === 400) {
-				notifications.show({
-					message:
-						error?.response?.data?.message ?? "An error occurred",
-					color: "red",
-				});
-			} else {
-				notifications.show({
-					message: "An error occurred",
-					color: "red",
-				});
-			}
+			notifications.show({
+				message:
+					error?.response?.data?.message ?? "An error occurred",
+				color: "red",
+			});
 		} finally {
 			setSigningUp(false);
 		}
 	};
 
-	const completeProfile = async ({ journey, profilePicture }: { journey: string; profilePicture: string }) => {
+	const completeProfile = async ({
+		journey,
+		profilePicture,
+	}: {
+		journey: string;
+		profilePicture: string;
+	}) => {
 		setCompletingProfile(true);
 		const newUser = {
 			...artist,
 			bio: journey,
 			profilePicture,
-		}
-
+		};
 
 		try {
 			const { data } = await axios.put(`/artists`, newUser);
@@ -203,7 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		} catch (error: any) {
 			console.log(error);
 			notifications.show({
-				message: "An error occurred",
+				message:
+					error?.response?.data?.message ?? "An error occurred",
 				color: "red",
 			});
 		} finally {

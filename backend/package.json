@@ -7,7 +7,8 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/src/server.js",
-    "reset-admin": "ts-node src/scripts/resetAdminPassword.ts"
+    "reset-admin": "ts-node src/scripts/resetAdminPassword.ts",
+    "migrate:artists": "ts-node src/scripts/migrateArtistStatus.ts"
   },
   "dependencies": {
     "@types/nodemailer": "^6.4.8",

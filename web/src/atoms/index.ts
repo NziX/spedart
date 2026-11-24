@@ -1,7 +1,8 @@
 import { atom } from "recoil";
 import { Art } from "@/types";
+
 export const activeOnboardingStepState = atom<
-  "registration" | "artist_journey" | "profile"
+  "registration" | "artist_journey" | "profile" | "awaiting_approval"
 >({
   key: "ActiveOnboardingStepState",
   default: "registration",
@@ -50,4 +51,3 @@ export const showBalanceState = atom<{
   key: "ShowBalanceState",
   default: null,
 });
-

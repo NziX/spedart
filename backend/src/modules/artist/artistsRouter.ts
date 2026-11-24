@@ -3,6 +3,7 @@ import ArtistsController from './artistsController';
 import {
   adminAuthValidator,
   artistAuthValidator,
+  requireApprovedArtist,
 } from '../../middlewares/auth';
 
 const router = Router();
@@ -16,19 +17,19 @@ router.get(
   adminAuthValidator,
   ArtistsController.getTotalArtists
 );
-router.get('/me', ArtistsController.getCurrentArtist);
+router.get('/me', requireApprovedArtist, ArtistsController.getCurrentArtist);
 router.get('/:artistId', ArtistsController.getArtist);
-router.put('/', artistAuthValidator, ArtistsController.updateArtist);
+router.put('/', requireApprovedArtist, ArtistsController.updateArtist);
 router.post('/send-verification-code', ArtistsController.sendVerificationCode);
-router.post('/verify-code', artistAuthValidator, ArtistsController.verifyCode);
+router.post('/verify-code', requireApprovedArtist, ArtistsController.verifyCode);
 router.post(
   '/reset-password',
-  artistAuthValidator,
+  requireApprovedArtist,
   ArtistsController.resetPassword
 );
 router.put(
   '/change-password',
-  artistAuthValidator,
+  requireApprovedArtist,
   ArtistsController.changePassword
 );
 

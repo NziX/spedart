@@ -29,25 +29,26 @@ export default class ArtistsController {
           message: 'Phone number already exists',
         });
       }
-      const newArtist = await Artist.create(artist);
 
-      const payload = {
-        id: newArtist._id,
-        email: newArtist.email,
-      };
-
-      const token = generateToken(payload);
+      // Explicitly set status to pending; ignore any client-sent status
+      const newArtist = await Artist.create({
+        ...artist,
+        status: 'pending',
+        rejectionReason: null,
+        reviewedAt: null,
+        reviewedBy: null,
+      });
 
       return res.status(201).json({
         success: true,
+        message: 'Your account is awaiting admin approval.',
         artist: newArtist,
-        token,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error',
+        message: error?.message || 'Internal server error',
       });
     }
   }
@@ -72,9 +73,29 @@ export default class ArtistsController {
       }
 
       if (artist.isBlocked) {
-        return res.status(400).json({
+        return res.status(403).json({
           success: false,
           message: 'Your account has been blocked',
+        });
+      }
+
+      // Check approval status
+      if (artist.status === 'pending') {
+        return res.status(403).json({
+          success: false,
+          status: 'pending',
+          message: 'Your account is awaiting approval.',
+        });
+      }
+
+      if (artist.status === 'rejected') {
+        return res.status(403).json({
+          success: false,
+          status: 'rejected',
+          message: artist.rejectionReason
+            ? `Your account was rejected: ${artist.rejectionReason}`
+            : 'Your account has been rejected.',
+          rejectionReason: artist.rejectionReason,
         });
       }
 
@@ -101,7 +122,10 @@ export default class ArtistsController {
 
   public static async getAllArtistIds(req: Request, res: Response) {
     try {
-      const artists = await Artist.find();
+      const artists = await Artist.find({
+        $or: [{ status: 'approved' }, { status: { $exists: false } }],
+        isBlocked: false,
+      });
       res.status(200).json({
         success: true,
         artists: artists.map((artist) => artist._id),
@@ -117,7 +141,11 @@ export default class ArtistsController {
 
   public static async getArtists(req: Request, res: Response) {
     try {
-      const artists = await Artist.find().lean();
+      const artists = await Artist.find({
+        $or: [{ status: 'approved' }, { status: { $exists: false } }],
+        isBlocked: false,
+      }).lean();
+
       const artistsWithArtCount = await Promise.all(
         artists.map(async (artist) => {
           const artCount = await Art.countDocuments({

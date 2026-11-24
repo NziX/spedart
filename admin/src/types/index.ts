@@ -7,12 +7,21 @@ interface Base {
 export interface Artist extends Base {
 	firstName: string;
 	lastName: string;
+	stageName?: string;
 	email: string;
 	phoneNumber: string;
 	bio?: string;
 	profilePicture: string;
 	isVerified: boolean;
 	isBlocked: boolean;
+	status: "pending" | "approved" | "rejected";
+	rejectionReason?: string;
+	reviewedAt?: string;
+	reviewedBy?: {
+		_id: string;
+		username: string;
+		email: string;
+	};
 }
 
 export interface IAdmin extends Base {
@@ -58,18 +67,9 @@ export interface Payment extends Base {
 	amount: number;
 }
 
-export enum EArtType {
-	SONG,
-}
-
 export enum ECurrency {
-	USD,
-	RWF,
-}
-
-export enum EArtStatus {
-	AVAILABLE = "AVAILABLE",
-	SOLD = "SOLD",
+	RWF = "RWF",
+	USD = "USD",
 }
 
 export enum EPaymentType {
@@ -79,6 +79,20 @@ export enum EPaymentType {
 
 export enum EPaymentStatus {
 	PENDING = "PENDING",
-	RECEIVED = "RECEIVED",
+	SUCCESS = "SUCCESS",
+	FAILED = "FAILED",
 	PAID = "PAID",
+	RECEIVED = "RECEIVED",
+}
+
+export enum EArtType {
+	MUSIC = "MUSIC",
+	POETRY = "POETRY",
+	COMEDY = "COMEDY",
+	PODCAST = "PODCAST",
+}
+
+export enum EArtStatus {
+	ACTIVE = "ACTIVE",
+	INACTIVE = "INACTIVE",
 }
