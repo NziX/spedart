@@ -15,7 +15,6 @@ import {
   RefreshCw,
   ArrowRight,
   ShieldCheck,
-  KeyRound,
 } from "lucide-react";
 
 export default function Verification() {
@@ -142,9 +141,6 @@ export default function Verification() {
           data.message || "A new verification code has been sent to your email.",
         color: "teal",
       });
-      if (data?.devCode) {
-        updateStoredVerification({ devCode: data.devCode });
-      }
       setEmailCooldown(60);
     } catch (error: any) {
       notifications.show({
@@ -192,32 +188,6 @@ export default function Verification() {
           >
             Continue <ArrowRight className="w-3.5 h-3.5" />
           </Button>
-        </div>
-      )}
-
-      {/* Test / Fallback Code Helper Banner if external SMTP is unconfigured or blocked */}
-      {vData.devCode && !vData.isEmailVerified && (
-        <div className="w-full bg-blue-50 border border-blue-200 rounded-xl p-3.5 flex items-start gap-2.5 text-blue-900 text-xs">
-          <KeyRound className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-          <div className="flex-1 space-y-1">
-            <p className="font-medium text-blue-800">
-              Demo / Test Notice: External SMTP is not active
-            </p>
-            <p className="text-blue-700">
-              Your verification code is:{" "}
-              <button
-                type="button"
-                onClick={() => setEmailCode(String(vData.devCode))}
-                className="font-mono font-bold text-sm bg-white border border-blue-300 px-2 py-0.5 rounded text-blue-900 hover:bg-blue-100 transition-colors ml-1 cursor-pointer"
-                title="Click to copy and fill code"
-              >
-                {vData.devCode}
-              </button>{" "}
-              <span className="text-[11px] text-blue-600">
-                (Click the code to autofill)
-              </span>
-            </p>
-          </div>
         </div>
       )}
 

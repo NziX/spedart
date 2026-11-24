@@ -4,7 +4,6 @@ import axios from 'axios';
 interface IResponse {
   error?: string;
   sent: boolean;
-  simulated?: boolean;
 }
 
 export const sendEmail = async ({
@@ -42,14 +41,19 @@ export const sendEmail = async ({
       console.log(`[Email Sent via Resend API to ${to}]`);
       return { sent: true };
     } catch (err: any) {
+      const apiErr = err?.response?.data?.message || err?.message || 'Resend API delivery error';
       console.error('Resend API Error:', err?.response?.data || err?.message);
+      return {
+        sent: false,
+        error: apiErr,
+      };
     }
   }
 
   // 2. If Hostinger / SMTP is configured
   if (process.env.EMAIL && process.env.PASSWORD) {
     try {
-      const smtpPort = Number(process.env.SMTP_PORT) || 587;
+      const smtpPort = Number(process.env.SMTP_PORT) || 465;
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.hostinger.com',
         port: smtpPort,
@@ -58,10 +62,13 @@ export const sendEmail = async ({
           user: process.env.EMAIL,
           pass: process.env.PASSWORD,
         },
+        tls: {
+          rejectUnauthorized: false,
+        },
       });
 
       const mailOptions = {
-        from: process.env.EMAIL,
+        from: `"Supported" <${process.env.EMAIL}>`,
         to,
         subject: subject,
         html: `
@@ -73,28 +80,38 @@ export const sendEmail = async ({
         `,
       };
 
-      await transporter.sendMail(mailOptions);
-      console.log(`[Email Sent via SMTP to ${to}]`);
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`[Email Sent via SMTP to ${to}]:`, info.messageId);
+
+      // Check for rejected recipients
+      if (info.rejected && info.rejected.length > 0) {
+        return {
+          sent: false,
+          error: `The email address "${to}" was rejected by the mail server. It does not exist or cannot accept mail.`,
+        };
+      }
+
       return { sent: true };
     } catch (err: any) {
       console.error(`[SMTP Error sending to ${to}]:`, err?.message || err);
+
+      let userFriendlyError = err?.message || 'SMTP delivery failed';
+      if (err?.responseCode === 550 || err?.code === 'EENVELOPE') {
+        userFriendlyError = `The email address "${to}" does not exist or was rejected by the mail server.`;
+      } else if (err?.code === 'ETIMEDOUT' || err?.code === 'ECONNREFUSED') {
+        userFriendlyError = 'Could not connect to email mail server. Please try again shortly.';
+      }
+
       return {
         sent: false,
-        error: err?.message || 'SMTP delivery failed',
+        error: userFriendlyError,
       };
     }
   }
 
-  // 3. Fallback / Dev Mode: No email provider configured
-  console.log(`\n========================================`);
-  console.log(`[SIMULATED EMAIL TO ${to}]`);
-  console.log(`Subject: ${subject}`);
-  console.log(`Body:\n${body}`);
-  console.log(`========================================\n`);
-
+  console.error(`[Email Service Not Configured]: Neither RESEND_API_KEY nor EMAIL/PASSWORD are set.`);
   return {
     sent: false,
-    simulated: true,
-    error: 'No email service credentials (RESEND_API_KEY or EMAIL/PASSWORD) configured.',
+    error: 'Email service is not configured on the server. Please check environment variables or contact support.',
   };
 };

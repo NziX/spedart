@@ -196,7 +196,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 				phoneNumber: data.artist?.phoneNumber || artist.phoneNumber || "",
 				isEmailVerified: !!data.artist?.isEmailVerified,
 				isPhoneVerified: true,
-				devCode: data?.devCode,
 			};
 			setVerificationData(vData);
 			localStorage.setItem("pendingVerification", JSON.stringify(vData));

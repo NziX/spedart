@@ -13,7 +13,6 @@ export const verificationState = atom<{
   phoneNumber?: string;
   isEmailVerified: boolean;
   isPhoneVerified?: boolean;
-  devCode?: number | string;
 }>({
   key: "VerificationState",
   default: {
@@ -21,7 +20,6 @@ export const verificationState = atom<{
     phoneNumber: "",
     isEmailVerified: false,
     isPhoneVerified: true,
-    devCode: undefined,
   },
 });
 

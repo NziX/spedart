@@ -3,6 +3,7 @@ import { generateVerificationCode } from '../../utils';
 import { comparePassword } from '../../utils/bcrypt';
 import { sendEmail } from '../../utils/nodemailer';
 import { sendSMS } from '../../utils/sms';
+import { validateEmailExistence } from '../../utils/emailValidator';
 import Artist from './artistModel';
 import { validateArtist } from './artistValidator';
 import Art from '../art/artModel';
@@ -31,8 +32,40 @@ export default class ArtistsController {
         });
       }
 
+      // Check whether the email domain actually exists and accepts mail
+      const domainCheck = await validateEmailExistence(artist.email);
+      if (!domainCheck.valid) {
+        return res.status(400).json({
+          success: false,
+          message:
+            domainCheck.message ||
+            'The email address provided does not exist. Please enter a valid email.',
+        });
+      }
+
       const emailCode = generateVerificationCode();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+      // Dispatch the verification email before creating the artist record
+      const emailResult = await sendEmail({
+        to: artist.email,
+        subject: 'Verify Your Email Address - Supported',
+        body: `
+          <p>Welcome to Supported, ${artist.stageName || artist.firstName}!</p>
+          <p>Your email verification code is:</p>
+          <h2 style="letter-spacing: 4px; font-size: 28px; color: #4F46E5;">${emailCode}</h2>
+          <p>This code will expire in 15 minutes. Please enter it to verify your email.</p>
+        `,
+      });
+
+      if (!emailResult.sent) {
+        return res.status(400).json({
+          success: false,
+          message:
+            emailResult.error ||
+            'The email address provided could not be reached. Please verify that your email exists and is active.',
+        });
+      }
 
       // Explicitly set status to pending; only email verification required
       const newArtist = await Artist.create({
@@ -46,34 +79,16 @@ export default class ArtistsController {
         },
       });
 
-      // Send verification email
-      let emailResult: { sent: boolean; error?: string } = { sent: false };
-      try {
-        emailResult = await sendEmail({
-          to: newArtist.email,
-          subject: 'Verify Your Email Address - Supported',
-          body: `
-            <p>Welcome to Supported, ${newArtist.stageName || newArtist.firstName}!</p>
-            <p>Your email verification code is:</p>
-            <h2 style="letter-spacing: 4px; font-size: 28px; color: #4F46E5;">${emailCode}</h2>
-            <p>This code will expire in 15 minutes. Please enter it to verify your email.</p>
-          `,
-        });
-      } catch (err: any) {
-        console.error('Failed to send verification email:', err);
-      }
-
       return res.status(201).json({
         success: true,
-        message: 'Registration started. Please verify your email address.',
-        devCode: !emailResult.sent ? emailCode : undefined,
+        message: 'Verification code sent to your email. Please check your inbox.',
         artist: {
           _id: newArtist._id,
           firstName: newArtist.firstName,
           lastName: newArtist.lastName,
           email: newArtist.email,
           phoneNumber: newArtist.phoneNumber,
-          isEmailVerified: newArtist.isEmailVerified,
+          isEmailVerified: false,
           isPhoneVerified: true,
         },
       });
@@ -262,10 +277,18 @@ export default class ArtistsController {
         `,
       });
 
+      if (!emailResult.sent) {
+        return res.status(400).json({
+          success: false,
+          message:
+            emailResult.error ||
+            'Could not deliver verification email to this address. Please verify that your email exists and is active.',
+        });
+      }
+
       return res.status(200).json({
         success: true,
         message: 'A new verification code has been sent to your email.',
-        devCode: !emailResult.sent ? code : undefined,
       });
     } catch (error: any) {
       console.log(error);
