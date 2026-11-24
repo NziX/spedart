@@ -5,6 +5,9 @@ import { comparePassword } from "../../utils/bcrypt";
 import { generateToken } from "../../utils/jwt";
 import { getCurrentAdmin } from "../../utils/currentUser";
 import Artist from "../artist/artistModel";
+import Art from "../art/artModel";
+import Like from "../art/likeModel";
+import Streams from "../art/playsModel";
 import { sendEmail } from "../../utils/nodemailer";
 
 export default class AdminController {
@@ -226,12 +229,12 @@ export default class AdminController {
   public static async getArtistsByStatus(req: Request, res: Response) {
     try {
       const requestedStatus = (req.query.status as string) || "pending";
-      const validStatuses = ["pending", "approved", "rejected"];
+      const validStatuses = ["pending", "approved", "rejected", "all"];
 
       if (validStatuses.indexOf(requestedStatus) === -1) {
         return res.status(400).json({
           success: false,
-          message: "Invalid status. Must be pending, approved, or rejected.",
+          message: "Invalid status. Must be pending, approved, rejected, or all.",
         });
       }
 
@@ -240,6 +243,8 @@ export default class AdminController {
         query = {
           $or: [{ status: "approved" }, { status: { $exists: false } }],
         };
+      } else if (requestedStatus === "all") {
+        query = {};
       }
 
       const artists = await Artist.find(query)
@@ -388,6 +393,77 @@ export default class AdminController {
       return res.status(500).json({
         success: false,
         message: "Error rejecting artist",
+      });
+    }
+  }
+
+  public static async deleteArtist(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const artist = await Artist.findById(id);
+
+      if (!artist) {
+        return res.status(404).json({
+          success: false,
+          message: "Artist not found",
+        });
+      }
+
+      // Check if artist has active funds in dashboard or a pending withdrawal
+      const artistBalance = Number(artist.balance) || 0;
+      if (artistBalance > 0 || artist.pendingWithdrawal) {
+        return res.status(400).json({
+          success: false,
+          hasFunds: true,
+          balance: artistBalance,
+          message: `Cannot delete artist "${artist.stageName || artist.firstName}": This artist has active funds of ${artistBalance.toLocaleString()} RWF in their dashboard. Outstanding funds must be withdrawn or settled before the account can be deleted.`,
+        });
+      }
+
+      // 1. Find all arts belonging to this artist
+      const artistArts = await Art.find({ artist: id });
+      const artIds = artistArts.map((art) => art._id);
+
+      // 2. Cascade delete likes associated with these arts or created by this artist
+      await Like.deleteMany({
+        $or: [{ art: { $in: artIds } }, { artist: id }],
+      });
+
+      // 3. Cascade delete plays/streams associated with these arts or this artist
+      await Streams.deleteMany({
+        $or: [{ art: { $in: artIds } }, { artist: id }],
+      });
+
+      // 4. Cascade delete all arts belonging to this artist
+      const artsDeleteResult = await Art.deleteMany({ artist: id });
+
+      // 5. Permanently delete the artist record from the database
+      await Artist.findByIdAndDelete(id);
+
+      // 6. Notify artist by email (optional, fail-safe)
+      try {
+        await sendEmail({
+          to: artist.email,
+          subject: "Your Supported Artist Account Has Been Deleted",
+          body: `
+            <p>Hello ${artist.stageName || artist.firstName},</p>
+            <p>Your artist account and all associated arts (${artsDeleteResult.deletedCount}) have been deleted from Supported by administration.</p>
+            <p>You no longer have access to the artist dashboard. If you have questions, please contact our support team.</p>
+          `,
+        });
+      } catch (mailErr) {
+        console.error("Failed to send deletion notification email:", mailErr);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Artist "${artist.stageName || artist.firstName}" and their ${artsDeleteResult.deletedCount} art(s) have been deleted permanently.`,
+      });
+    } catch (error: any) {
+      console.error("Error deleting artist:", error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || "Internal server error while deleting artist",
       });
     }
   }

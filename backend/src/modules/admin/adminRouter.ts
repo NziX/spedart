@@ -42,6 +42,16 @@ router.post(
   adminAuthValidator,
   AdminController.rejectArtist
 );
+router.delete(
+  "/artists/:id",
+  adminAuthValidator,
+  AdminController.deleteArtist
+);
+router.delete(
+  "/delete-artist/:id",
+  adminAuthValidator,
+  AdminController.deleteArtist
+);
 
 const adminRouter = router;
 export default adminRouter;

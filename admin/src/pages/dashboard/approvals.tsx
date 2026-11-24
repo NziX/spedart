@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import axios from "@/lib/axios.config";
 import { Artist } from "@/types";
 import { notifications } from "@mantine/notifications";
-import { CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle } from "lucide-react";
 
 type ArtistStatus = "pending" | "approved" | "rejected";
 
@@ -28,6 +28,10 @@ export default function ArtistApprovals() {
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [artistToDelete, setArtistToDelete] = useState<Artist | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { mutate: globalMutate } = useSWRConfig();
 
@@ -71,6 +75,41 @@ export default function ArtistApprovals() {
       });
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const openDeleteModal = (artist: Artist) => {
+    setArtistToDelete(artist);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteArtist = async () => {
+    if (!artistToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { data } = await axios.delete(`/admin/artists/${artistToDelete._id}`);
+      notifications.show({
+        title: "Artist Deleted",
+        message:
+          data?.message ||
+          `${artistToDelete.stageName || artistToDelete.firstName} and all their arts have been deleted.`,
+        color: "teal",
+      });
+      setDeleteModalOpen(false);
+      setArtistToDelete(null);
+      await mutate();
+      mutatePendingCount();
+      globalMutate("/admin/artists/pending-count");
+    } catch (error: any) {
+      notifications.show({
+        title: "Deletion Prevented",
+        message:
+          error?.response?.data?.message ||
+          "Could not delete artist. Please ensure all dashboard funds are settled.",
+        color: "red",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -274,6 +313,18 @@ export default function ArtistApprovals() {
                 Reject
               </Button>
             )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isCurrentLoading}
+              onClick={() => openDeleteModal(row)}
+              className="text-xs h-8 px-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex items-center gap-1"
+              title="Delete artist and cascade delete arts"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </Button>
           </div>
         );
       },
@@ -385,6 +436,96 @@ export default function ArtistApprovals() {
               disabled={actionLoadingId !== null}
             >
               {actionLoadingId ? "Rejecting..." : "Confirm Rejection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Artist Confirmation Dialog */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" /> Delete Artist Account
+            </DialogTitle>
+            <DialogDescription>
+              This action operates directly on the database.
+            </DialogDescription>
+          </DialogHeader>
+
+          {artistToDelete && (
+            <div className="space-y-4 py-2">
+              <div className="bg-muted/50 p-3 rounded-lg border text-sm space-y-1">
+                <p className="font-semibold text-foreground">
+                  {artistToDelete.firstName} {artistToDelete.lastName}
+                  {artistToDelete.stageName ? ` (${artistToDelete.stageName})` : ""}
+                </p>
+                <p className="text-xs text-muted-foreground">{artistToDelete.email}</p>
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground">Dashboard Funds:</span>
+                  <span className={`text-xs font-bold ${(Number(artistToDelete.balance) || 0) > 0 ? "text-emerald-700" : "text-muted-foreground"}`}>
+                    {(Number(artistToDelete.balance) || 0).toLocaleString()} RWF
+                  </span>
+                </div>
+              </div>
+
+              {/* CRITICAL FUNDS CHECK ALERT */}
+              {(Number(artistToDelete.balance) || 0) > 0 || artistToDelete.pendingWithdrawal ? (
+                <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-lg p-3.5 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Deletion Blocked: Artist Has Active Funds</span>
+                  </div>
+                  <p>
+                    This artist currently has <strong>{(Number(artistToDelete.balance) || 0).toLocaleString()} RWF</strong> in their dashboard balance
+                    {artistToDelete.pendingWithdrawal ? " and a pending payout in progress" : ""}.
+                  </p>
+                  <p className="text-amber-800 font-medium">
+                    As a financial security rule, artist accounts with unpaid or pending funds cannot be deleted. Outstanding funds must be withdrawn or settled before this account can be removed.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3.5 text-xs space-y-1.5">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Permanent Cascading Deletion</span>
+                  </div>
+                  <p>
+                    Deleting this artist will automatically:
+                  </p>
+                  <ul className="list-disc pl-5 space-y-0.5">
+                    <li>Permanently delete their account from the database</li>
+                    <li><strong>Automatically delete all their uploaded arts/songs</strong></li>
+                    <li>Delete all associated plays and likes</li>
+                    <li><strong>Immediately revoke all dashboard and login access</strong></li>
+                  </ul>
+                  <p className="pt-1 font-semibold text-[11px]">
+                    This action is immediate and cannot be undone.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                isDeleting ||
+                (Number(artistToDelete?.balance) || 0) > 0 ||
+                !!artistToDelete?.pendingWithdrawal
+              }
+              onClick={handleDeleteArtist}
+              className="gap-1.5"
+            >
+              {isDeleting ? "Deleting..." : "Delete Permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>

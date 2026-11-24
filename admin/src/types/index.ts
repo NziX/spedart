@@ -19,6 +19,8 @@ export interface Artist extends Base {
 	reviewedAt?: string;
 	isEmailVerified?: boolean;
 	isPhoneVerified?: boolean;
+	balance?: number;
+	pendingWithdrawal?: boolean;
 	reviewedBy?: {
 		_id: string;
 		username: string;
