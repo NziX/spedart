@@ -2,7 +2,7 @@ import { atom } from "recoil";
 import { Art } from "@/types";
 
 export const activeOnboardingStepState = atom<
-  "registration" | "verification" | "artist_journey" | "profile" | "awaiting_approval"
+  "registration" | "verification" | "national_id" | "artist_journey" | "profile" | "awaiting_approval"
 >({
   key: "ActiveOnboardingStepState",
   default: "registration",

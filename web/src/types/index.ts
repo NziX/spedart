@@ -33,6 +33,13 @@ export interface IArtist extends Base {
 	reviewedAt?: string;
 	isEmailVerified?: boolean;
 	isPhoneVerified?: boolean;
+	nationalId?: {
+		idNumber?: string;
+		frontImage?: string;
+		backImage?: string;
+		submittedAt?: string;
+		isVerified?: boolean;
+	};
 }
 
 export interface IPreRelease extends Base {

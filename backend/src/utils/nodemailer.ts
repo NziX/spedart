@@ -62,12 +62,11 @@ export const sendEmail = async ({
     } catch (err: any) {
       const apiErr = err?.response?.data?.message || err?.message || 'Resend API delivery error';
       console.error('Resend API Error:', err?.response?.data || err?.message);
-      if (!emailPass) {
-        return {
-          sent: false,
-          error: apiErr,
-        };
-      }
+      // Return immediately: Resend gave a definitive rejection (e.g. sandbox restriction, bad format, or quota)
+      return {
+        sent: false,
+        error: apiErr,
+      };
     }
   }
 

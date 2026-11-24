@@ -305,6 +305,9 @@ export default class AdminController {
       artist.reviewedAt = new Date();
       artist.reviewedBy = (currentAdmin?._id as any) || null;
       artist.rejectionReason = null;
+      if (artist.nationalId) {
+        artist.nationalId.isVerified = true;
+      }
       await artist.save();
 
       // Send approval notification email

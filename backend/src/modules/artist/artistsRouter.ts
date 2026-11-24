@@ -38,6 +38,7 @@ router.post('/verify-email', ArtistsController.verifyEmail);
 router.post('/verify-phone', ArtistsController.verifyPhone);
 router.post('/resend-email-code', ArtistsController.resendEmailCode);
 router.post('/resend-phone-code', ArtistsController.resendPhoneCode);
+router.post('/submit-national-id', ArtistsController.submitNationalId);
 
 const artistsRouter = router;
 export default artistsRouter;

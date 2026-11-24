@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import axios from "@/lib/axios.config";
 import { Artist } from "@/types";
 import { notifications } from "@mantine/notifications";
-import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle, Eye, ShieldCheck, CreditCard, ExternalLink } from "lucide-react";
 
 type ArtistStatus = "pending" | "approved" | "rejected";
 
@@ -32,6 +32,11 @@ export default function ArtistApprovals() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [artistToDelete, setArtistToDelete] = useState<Artist | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [idModalOpen, setIdModalOpen] = useState(false);
+  const [selectedArtistForId, setSelectedArtistForId] = useState<Artist | null>(null);
+  const [approveWarningModalOpen, setApproveWarningModalOpen] = useState(false);
+  const [artistToApproveWithWarning, setArtistToApproveWithWarning] = useState<Artist | null>(null);
 
   const { mutate: globalMutate } = useSWRConfig();
 
@@ -76,6 +81,17 @@ export default function ArtistApprovals() {
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const handleApproveInitiation = (artist: Artist) => {
+    const hasFront = Boolean(artist.nationalId?.frontImage);
+    const hasBack = Boolean(artist.nationalId?.backImage);
+    if (!hasFront || !hasBack) {
+      setArtistToApproveWithWarning(artist);
+      setApproveWarningModalOpen(true);
+      return;
+    }
+    handleApprove(artist);
   };
 
   const openDeleteModal = (artist: Artist) => {
@@ -204,6 +220,55 @@ export default function ArtistApprovals() {
       ),
     },
     {
+      title: "National ID & Scans",
+      key: "nationalId",
+      Element: ({ row }) => {
+        const hasFront = Boolean(row.nationalId?.frontImage);
+        const hasBack = Boolean(row.nationalId?.backImage);
+        const hasId = hasFront && hasBack;
+
+        return (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {hasId ? (
+                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" /> ID Scanned (Front &amp; Back)
+                </Badge>
+              ) : hasFront || hasBack ? (
+                <Badge variant="outline" className="text-amber-800 border-amber-300 bg-amber-50 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 text-amber-600" /> Incomplete ID Scans
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-red-700 border-red-300 bg-red-50 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-red-500" /> No ID Uploaded
+                </Badge>
+              )}
+            </div>
+
+            {row.nationalId?.idNumber && (
+              <p className="text-[11px] font-mono text-muted-foreground">
+                No: {row.nationalId.idNumber}
+              </p>
+            )}
+
+            {(hasFront || hasBack) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedArtistForId(row);
+                  setIdModalOpen(true);
+                }}
+                className="h-6 text-[11px] px-2 gap-1 text-indigo-700 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100"
+              >
+                <Eye className="w-3 h-3" /> Inspect ID Scans
+              </Button>
+            ) : null}
+          </div>
+        );
+      },
+    },
+    {
       title: "Registered",
       key: "createdAt",
       Element: ({ row }) => (
@@ -296,7 +361,7 @@ export default function ArtistApprovals() {
                 size="sm"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
                 disabled={isCurrentLoading}
-                onClick={() => handleApprove(row)}
+                onClick={() => handleApproveInitiation(row)}
               >
                 {isCurrentLoading ? "Saving..." : "Approve"}
               </Button>
@@ -526,6 +591,210 @@ export default function ArtistApprovals() {
               className="gap-1.5"
             >
               {isDeleting ? "Deleting..." : "Delete Permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* National ID Inspection Dialog */}
+      <Dialog open={idModalOpen} onOpenChange={setIdModalOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <ShieldCheck className="w-5 h-5 text-indigo-600" />
+              National ID Verification Details
+            </DialogTitle>
+            <DialogDescription>
+              Review the official ID scans provided by this artist to verify identity and prevent fraud.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedArtistForId && (
+            <div className="space-y-5 py-2">
+              {/* Applicant Info Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-muted/40 p-3.5 rounded-lg border text-xs">
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Full Legal Name</span>
+                  <p className="font-semibold text-foreground text-sm">
+                    {selectedArtistForId.firstName} {selectedArtistForId.lastName}
+                  </p>
+                  {selectedArtistForId.stageName && (
+                    <p className="text-muted-foreground text-[11px]">
+                      Stage: {selectedArtistForId.stageName}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Contact</span>
+                  <p className="font-medium text-foreground">{selectedArtistForId.email}</p>
+                  <p className="text-muted-foreground">{selectedArtistForId.phoneNumber}</p>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">ID / Passport Number</span>
+                  <p className="font-mono font-bold text-foreground text-sm text-indigo-700">
+                    {selectedArtistForId.nationalId?.idNumber || "Not recorded"}
+                  </p>
+                  {selectedArtistForId.nationalId?.submittedAt && (
+                    <p className="text-muted-foreground text-[10px]">
+                      Submitted: {new Date(selectedArtistForId.nationalId.submittedAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ID Scans Comparison (Front & Back) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Front Scan */}
+                <div className="border rounded-xl p-3.5 bg-card space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b">
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
+                      1. Front of National ID
+                    </span>
+                    {selectedArtistForId.nationalId?.frontImage && (
+                      <a
+                        href={selectedArtistForId.nationalId.frontImage}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                      >
+                        Open Full <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  {selectedArtistForId.nationalId?.frontImage ? (
+                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1">
+                      <img
+                        src={selectedArtistForId.nationalId.frontImage}
+                        alt="Front ID Scan"
+                        className="w-full h-auto max-h-64 object-contain rounded"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-44 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
+                      <AlertCircle className="w-6 h-6 mb-1 text-amber-500" />
+                      Front scan not uploaded
+                    </div>
+                  )}
+                </div>
+
+                {/* Back Scan */}
+                <div className="border rounded-xl p-3.5 bg-card space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b">
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
+                      2. Back of National ID
+                    </span>
+                    {selectedArtistForId.nationalId?.backImage && (
+                      <a
+                        href={selectedArtistForId.nationalId.backImage}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                      >
+                        Open Full <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  {selectedArtistForId.nationalId?.backImage ? (
+                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1">
+                      <img
+                        src={selectedArtistForId.nationalId.backImage}
+                        alt="Back ID Scan"
+                        className="w-full h-auto max-h-64 object-contain rounded"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-44 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
+                      <AlertCircle className="w-6 h-6 mb-1 text-amber-500" />
+                      Back scan not uploaded
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex justify-between items-center sm:justify-between w-full pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIdModalOpen(false)}
+            >
+              Close
+            </Button>
+
+            {selectedArtistForId && selectedArtistForId.status !== "approved" && (
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                disabled={actionLoadingId === selectedArtistForId._id}
+                onClick={async () => {
+                  setIdModalOpen(false);
+                  await handleApprove(selectedArtistForId);
+                }}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Confirm &amp; Approve Artist
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Warning Dialog: Approving Artist Without ID */}
+      <Dialog open={approveWarningModalOpen} onOpenChange={setApproveWarningModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              National ID Missing
+            </DialogTitle>
+            <DialogDescription>
+              Anti-scam verification warning before approval.
+            </DialogDescription>
+          </DialogHeader>
+
+          {artistToApproveWithWarning && (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3.5 space-y-1.5">
+                <p className="font-semibold text-amber-950">
+                  {artistToApproveWithWarning.firstName} {artistToApproveWithWarning.lastName} has not uploaded both front and back ID scans.
+                </p>
+                <p>
+                  To protect creators and avoid scammers, artists should submit official government ID scans before account activation.
+                </p>
+                <p className="font-medium text-amber-800">
+                  Are you certain you want to bypass ID verification and approve this artist anyway?
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApproveWarningModalOpen(false);
+                setArtistToApproveWithWarning(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={async () => {
+                if (artistToApproveWithWarning) {
+                  const target = artistToApproveWithWarning;
+                  setApproveWarningModalOpen(false);
+                  setArtistToApproveWithWarning(null);
+                  await handleApprove(target);
+                }
+              }}
+            >
+              Approve Anyway
             </Button>
           </DialogFooter>
         </DialogContent>

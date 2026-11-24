@@ -21,6 +21,13 @@ export interface IArtistDocument extends mongoose.Document {
     code?: number;
     expiresAt?: Date;
   };
+  nationalId?: {
+    idNumber?: string;
+    frontImage?: string;
+    backImage?: string;
+    submittedAt?: Date;
+    isVerified?: boolean;
+  };
   pendingWithdrawal: boolean;
   status: "pending" | "approved" | "rejected";
   rejectionReason?: string | null;
@@ -99,6 +106,13 @@ const artistSchema = new mongoose.Schema(
     phoneVerification: {
       code: Number,
       expiresAt: Date,
+    },
+    nationalId: {
+      idNumber: { type: String, default: null },
+      frontImage: { type: String, default: null },
+      backImage: { type: String, default: null },
+      submittedAt: { type: Date, default: null },
+      isVerified: { type: Boolean, default: false },
     },
     pendingWithdrawal: {
       type: Boolean,

@@ -358,6 +358,65 @@ export default class ArtistsController {
     }
   }
 
+  public static async submitNationalId(req: Request, res: Response) {
+    try {
+      const { email, idNumber, frontImage, backImage } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is required.',
+        });
+      }
+
+      if (!idNumber || !idNumber.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'National ID or Passport number is required.',
+        });
+      }
+
+      if (!frontImage || !backImage) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both Front and Back photos of your National ID are required.',
+        });
+      }
+
+      const artist = await Artist.findOne({
+        email: { $regex: new RegExp(`^${email.trim()}$`, 'i') },
+      });
+      if (!artist) {
+        return res.status(404).json({
+          success: false,
+          message: 'Artist not found.',
+        });
+      }
+
+      artist.nationalId = {
+        idNumber: idNumber.trim(),
+        frontImage: frontImage.trim(),
+        backImage: backImage.trim(),
+        submittedAt: new Date(),
+        isVerified: false,
+      };
+
+      await artist.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'National ID documents uploaded successfully and submitted for review.',
+        nationalId: artist.nationalId,
+      });
+    } catch (error: any) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || 'Internal server error while submitting National ID.',
+      });
+    }
+  }
+
   public static async loginArtist(req: Request, res: Response) {
     try {
       const { email, password } = req.body;

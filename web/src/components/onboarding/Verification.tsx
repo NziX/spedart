@@ -109,6 +109,9 @@ export default function Verification() {
         isEmailVerified: true,
         email: activeEmail.trim(),
       });
+      setTimeout(() => {
+        setActiveStep("national_id");
+      }, 1000);
     } catch (error: any) {
       notifications.show({
         title: "Verification Failed",
@@ -178,15 +181,15 @@ export default function Verification() {
           <div className="flex-1 text-sm">
             <p className="font-semibold">Email Verified!</p>
             <p className="text-xs text-emerald-700">
-              Your email is confirmed. Moving to the next step...
+              Your email is confirmed. Next: verify your National ID to complete registration.
             </p>
           </div>
           <Button
             size="sm"
-            onClick={() => setActiveStep("awaiting_approval")}
+            onClick={() => setActiveStep("national_id")}
             className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
           >
-            Continue <ArrowRight className="w-3.5 h-3.5" />
+            Verify National ID <ArrowRight className="w-3.5 h-3.5" />
           </Button>
         </div>
       )}
