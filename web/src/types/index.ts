@@ -31,6 +31,8 @@ export interface IArtist extends Base {
 	status?: "pending" | "approved" | "rejected";
 	rejectionReason?: string;
 	reviewedAt?: string;
+	isEmailVerified?: boolean;
+	isPhoneVerified?: boolean;
 }
 
 export interface IPreRelease extends Base {

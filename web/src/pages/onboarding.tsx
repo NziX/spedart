@@ -3,6 +3,7 @@ import Logo from "@/components/Logo";
 import ArtistProfile from "@/components/onboarding/ArtistProfile";
 import ArtistJourney from "@/components/onboarding/Journey";
 import Registration from "@/components/onboarding/Registration";
+import Verification from "@/components/onboarding/Verification";
 import AwaitingApproval from "@/components/onboarding/AwaitingApproval";
 import { generatePageTitle } from "@/lib/utils";
 import Head from "next/head";
@@ -21,6 +22,7 @@ export default function Onboarding() {
         <div className="mx-auto px-4 md:px-6 max-w-7xl w-full py-10">
           <Header />
           {activeStep === "registration" && <Registration />}
+          {activeStep === "verification" && <Verification />}
           {activeStep === "artist_journey" && <ArtistJourney />}
           {activeStep === "profile" && <ArtistProfile />}
           {activeStep === "awaiting_approval" && <AwaitingApproval />}

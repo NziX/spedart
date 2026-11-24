@@ -33,5 +33,11 @@ router.put(
   ArtistsController.changePassword
 );
 
+// Email and Phone verification routes
+router.post('/verify-email', ArtistsController.verifyEmail);
+router.post('/verify-phone', ArtistsController.verifyPhone);
+router.post('/resend-email-code', ArtistsController.resendEmailCode);
+router.post('/resend-phone-code', ArtistsController.resendPhoneCode);
+
 const artistsRouter = router;
 export default artistsRouter;

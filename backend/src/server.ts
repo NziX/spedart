@@ -34,6 +34,32 @@ dbConnection()
         console.error('Auto-migration error:', err);
       });
 
+    // Auto-migration: Ensure pre-existing artists without verification fields are marked verified
+    Artist.updateMany(
+      {
+        $or: [
+          { isEmailVerified: { $exists: false } },
+          { isEmailVerified: null },
+          { isPhoneVerified: { $exists: false } },
+          { isPhoneVerified: null },
+        ],
+      },
+      {
+        $set: {
+          isEmailVerified: true,
+          isPhoneVerified: true,
+        },
+      }
+    )
+      .then((res) => {
+        if (res.modifiedCount > 0) {
+          console.log(`Auto-migration: marked ${res.modifiedCount} existing artists as verified`);
+        }
+      })
+      .catch((err) => {
+        console.error('Auto-migration error:', err);
+      });
+
     app.listen(PORT, () => {
       console.log(`Server is listening on port ${PORT}`);
     });

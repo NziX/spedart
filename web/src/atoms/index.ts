@@ -2,10 +2,25 @@ import { atom } from "recoil";
 import { Art } from "@/types";
 
 export const activeOnboardingStepState = atom<
-  "registration" | "artist_journey" | "profile" | "awaiting_approval"
+  "registration" | "verification" | "artist_journey" | "profile" | "awaiting_approval"
 >({
   key: "ActiveOnboardingStepState",
   default: "registration",
+});
+
+export const verificationState = atom<{
+  email: string;
+  phoneNumber: string;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+}>({
+  key: "VerificationState",
+  default: {
+    email: "",
+    phoneNumber: "",
+    isEmailVerified: false,
+    isPhoneVerified: false,
+  },
 });
 
 export const onboardingDataState = atom<{

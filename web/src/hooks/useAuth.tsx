@@ -9,6 +9,7 @@ import {
 	activeOnboardingStepState,
 	activeResetPasswordStepState,
 	onboardingDataState,
+	verificationState,
 } from "@/atoms";
 import { UIDHASH } from "@/lib/constants";
 
@@ -53,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [completingProfile, setCompletingProfile] = useState(false);
 	const [onboardingData, setOnboardingData] =
 		useRecoilState(onboardingDataState);
+	const [verificationData, setVerificationData] =
+		useRecoilState(verificationState);
 	const [sendingResetCode, setSendingResetCode] = useState(false);
 	const [__, setActiveResetPasswordStep] = useRecoilState(
 		activeResetPasswordStepState
@@ -136,6 +139,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			router.push("/dashboard");
 		} catch (error: any) {
 			console.log(error);
+			if (error?.response?.data?.requiresVerification) {
+				const { email: userEmail, phoneNumber, isEmailVerified, isPhoneVerified, message } = error.response.data;
+				const vData = {
+					email: userEmail || email,
+					phoneNumber: phoneNumber || "",
+					isEmailVerified: !!isEmailVerified,
+					isPhoneVerified: !!isPhoneVerified,
+				};
+				setVerificationData(vData);
+				localStorage.setItem("pendingVerification", JSON.stringify(vData));
+				setActiveOnboardingStep("verification");
+				notifications.show({
+					title: "Verification Required",
+					message: message || "Please verify your email and phone number to complete account setup.",
+					color: "yellow",
+				});
+				router.push("/onboarding");
+				return;
+			}
 			if (
 				error?.response?.status === 400 ||
 				error?.response?.status === 403
@@ -165,15 +187,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			notifications.show({
 				title: "Registration Received",
 				message:
-					data?.message || "Your account is awaiting admin approval.",
+					data?.message || "Please verify your email and phone number.",
 				color: "teal",
 			});
 			setArtist(data.artist);
+			const vData = {
+				email: data.artist.email || artist.email || "",
+				phoneNumber: data.artist.phoneNumber || artist.phoneNumber || "",
+				isEmailVerified: !!data.artist.isEmailVerified,
+				isPhoneVerified: !!data.artist.isPhoneVerified,
+			};
+			setVerificationData(vData);
+			localStorage.setItem("pendingVerification", JSON.stringify(vData));
 			if (data?.token) {
 				localStorage.setItem("sptToken", data.token);
 			}
 			setTimeout(() => {
-				setActiveOnboardingStep("awaiting_approval");
+				setActiveOnboardingStep("verification");
 			}, 300);
 		} catch (error: any) {
 			console.log(error);

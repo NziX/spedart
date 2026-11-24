@@ -17,6 +17,8 @@ export interface Artist extends Base {
 	status: "pending" | "approved" | "rejected";
 	rejectionReason?: string;
 	reviewedAt?: string;
+	isEmailVerified?: boolean;
+	isPhoneVerified?: boolean;
 	reviewedBy?: {
 		_id: string;
 		username: string;

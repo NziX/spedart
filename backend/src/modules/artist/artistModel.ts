@@ -11,6 +11,16 @@ export interface IArtistDocument extends mongoose.Document {
   profilePicture?: string;
   isVerified: boolean;
   isBlocked: boolean;
+  isEmailVerified: boolean;
+  isPhoneVerified: boolean;
+  emailVerification?: {
+    code?: number;
+    expiresAt?: Date;
+  };
+  phoneVerification?: {
+    code?: number;
+    expiresAt?: Date;
+  };
   pendingWithdrawal: boolean;
   status: "pending" | "approved" | "rejected";
   rejectionReason?: string | null;
@@ -73,6 +83,22 @@ const artistSchema = new mongoose.Schema(
     isBlocked: {
       type: Boolean,
       default: false,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerification: {
+      code: Number,
+      expiresAt: Date,
+    },
+    phoneVerification: {
+      code: Number,
+      expiresAt: Date,
     },
     pendingWithdrawal: {
       type: Boolean,
