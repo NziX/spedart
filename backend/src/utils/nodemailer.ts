@@ -15,12 +15,12 @@ export const sendEmail = async ({
   subject: string;
   body: string;
 }): Promise<IResponse> => {
-  const emailUser = process.env.EMAIL || 'spedart@gmail.com';
+  const emailUser = process.env.EMAIL || 'supportmainspedart@gmail.com';
   const emailPass = process.env.PASSWORD || process.env.GMAIL_APP_PASSWORD || '';
   const fromName = process.env.EMAIL_NAME || 'SpedArt';
   const fromAddress = `"${fromName}" <${emailUser}>`;
 
-  // 1. If SMTP / Gmail credentials are configured (preferred: sends directly from spedart@gmail.com)
+  // 1. If SMTP / Gmail credentials are configured (preferred: sends directly from supportmainspedart@gmail.com)
   if (emailPass) {
     try {
       const isGmail = emailUser.toLowerCase().includes('gmail.com');

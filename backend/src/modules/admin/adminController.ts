@@ -376,7 +376,7 @@ export default class AdminController {
             <p>Hello ${artist.stageName || artist.firstName},</p>
             <p>Thank you for your interest in joining <strong>SpedArt</strong>. After review, your artist account application was not approved.</p>
             <p><strong>Reason:</strong> ${rejectionReason}</p>
-            <p>If you believe this decision was made in error or would like to provide additional information, please contact our support team at spedart@gmail.com.</p>
+            <p>If you believe this decision was made in error or would like to provide additional information, please contact our support team at supportmainspedart@gmail.com.</p>
           `,
         });
       } catch (mailError) {

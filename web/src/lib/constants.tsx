@@ -28,7 +28,7 @@ export const navigation: {
 export const appName = "spedArt";
 export const contacts = {
 	phone: "+25078976444",
-	email: "supported@gmail.com",
+	email: "supportmainspedart@gmail.com",
 };
 
 export const artists = [
