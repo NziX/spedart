@@ -140,19 +140,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		} catch (error: any) {
 			console.log(error);
 			if (error?.response?.data?.requiresVerification) {
-				const { email: userEmail, phoneNumber, isEmailVerified, isPhoneVerified, message } = error.response.data;
+				const { email: userEmail, phoneNumber, isEmailVerified, message } = error.response.data;
 				const vData = {
 					email: userEmail || email,
 					phoneNumber: phoneNumber || "",
 					isEmailVerified: !!isEmailVerified,
-					isPhoneVerified: !!isPhoneVerified,
+					isPhoneVerified: true,
 				};
 				setVerificationData(vData);
 				localStorage.setItem("pendingVerification", JSON.stringify(vData));
 				setActiveOnboardingStep("verification");
 				notifications.show({
-					title: "Verification Required",
-					message: message || "Please verify your email and phone number to complete account setup.",
+					title: "Email Verification Required",
+					message: message || "Please verify your email address to complete account setup.",
 					color: "yellow",
 				});
 				router.push("/onboarding");
@@ -187,15 +187,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			notifications.show({
 				title: "Registration Received",
 				message:
-					data?.message || "Please verify your email and phone number.",
+					data?.message || "Please verify your email address.",
 				color: "teal",
 			});
 			setArtist(data.artist);
 			const vData = {
-				email: data.artist.email || artist.email || "",
-				phoneNumber: data.artist.phoneNumber || artist.phoneNumber || "",
-				isEmailVerified: !!data.artist.isEmailVerified,
-				isPhoneVerified: !!data.artist.isPhoneVerified,
+				email: data.artist?.email || artist.email || "",
+				phoneNumber: data.artist?.phoneNumber || artist.phoneNumber || "",
+				isEmailVerified: !!data.artist?.isEmailVerified,
+				isPhoneVerified: true,
+				devCode: data?.devCode,
 			};
 			setVerificationData(vData);
 			localStorage.setItem("pendingVerification", JSON.stringify(vData));

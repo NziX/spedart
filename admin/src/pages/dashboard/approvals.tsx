@@ -141,10 +141,10 @@ export default function ArtistApprovals() {
       ),
     },
     {
-      title: "Contact & Verification",
+      title: "Contact & Email Verification",
       key: "email",
       Element: ({ row }) => (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm font-medium">{row.email}</span>
             {row.isEmailVerified ? (
@@ -160,21 +160,7 @@ export default function ArtistApprovals() {
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-muted-foreground">{row.phoneNumber}</span>
-            {row.isPhoneVerified ? (
-              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-[10px] px-1.5 py-0">
-                Phone ✓
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="text-amber-800 border-amber-300 bg-amber-50 text-[10px] px-1.5 py-0"
-              >
-                Phone Unverified
-              </Badge>
-            )}
-          </div>
+          <p className="text-xs text-muted-foreground">{row.phoneNumber}</p>
         </div>
       ),
     },

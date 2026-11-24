@@ -90,7 +90,7 @@ const artistSchema = new mongoose.Schema(
     },
     isPhoneVerified: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     emailVerification: {
       code: Number,

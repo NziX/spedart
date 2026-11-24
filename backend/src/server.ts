@@ -42,6 +42,7 @@ dbConnection()
           { isEmailVerified: null },
           { isPhoneVerified: { $exists: false } },
           { isPhoneVerified: null },
+          { isPhoneVerified: false },
         ],
       },
       {

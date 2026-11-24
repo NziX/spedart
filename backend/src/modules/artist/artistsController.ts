@@ -32,28 +32,24 @@ export default class ArtistsController {
       }
 
       const emailCode = generateVerificationCode();
-      const phoneCode = generateVerificationCode();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-      // Explicitly set status to pending; force verification required
+      // Explicitly set status to pending; only email verification required
       const newArtist = await Artist.create({
         ...artist,
         status: 'pending',
         isEmailVerified: false,
-        isPhoneVerified: false,
+        isPhoneVerified: true,
         emailVerification: {
           code: emailCode,
-          expiresAt,
-        },
-        phoneVerification: {
-          code: phoneCode,
           expiresAt,
         },
       });
 
       // Send verification email
+      let emailResult: { sent: boolean; error?: string } = { sent: false };
       try {
-        await sendEmail({
+        emailResult = await sendEmail({
           to: newArtist.email,
           subject: 'Verify Your Email Address - Supported',
           body: `
@@ -63,23 +59,14 @@ export default class ArtistsController {
             <p>This code will expire in 15 minutes. Please enter it to verify your email.</p>
           `,
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to send verification email:', err);
-      }
-
-      // Send verification SMS
-      try {
-        await sendSMS({
-          to: newArtist.phoneNumber,
-          body: `Your Supported phone verification code is: ${phoneCode}. Valid for 15 minutes.`,
-        });
-      } catch (err) {
-        console.error('Failed to send verification SMS:', err);
       }
 
       return res.status(201).json({
         success: true,
-        message: 'Registration started. Please verify your email and phone number.',
+        message: 'Registration started. Please verify your email address.',
+        devCode: !emailResult.sent ? emailCode : undefined,
         artist: {
           _id: newArtist._id,
           firstName: newArtist.firstName,
@@ -87,7 +74,7 @@ export default class ArtistsController {
           email: newArtist.email,
           phoneNumber: newArtist.phoneNumber,
           isEmailVerified: newArtist.isEmailVerified,
-          isPhoneVerified: newArtist.isPhoneVerified,
+          isPhoneVerified: true,
         },
       });
     } catch (error: any) {
@@ -264,7 +251,7 @@ export default class ArtistsController {
       };
       await artist.save();
 
-      await sendEmail({
+      const emailResult = await sendEmail({
         to: artist.email,
         subject: 'Your Email Verification Code - Supported',
         body: `
@@ -278,6 +265,7 @@ export default class ArtistsController {
       return res.status(200).json({
         success: true,
         message: 'A new verification code has been sent to your email.',
+        devCode: !emailResult.sent ? code : undefined,
       });
     } catch (error: any) {
       console.log(error);
@@ -365,17 +353,16 @@ export default class ArtistsController {
         });
       }
 
-      // Check if email and phone are verified
-      if (artist.isEmailVerified === false || artist.isPhoneVerified === false) {
+      // Check if email is verified (phone verification not required)
+      if (artist.isEmailVerified === false) {
         return res.status(403).json({
           success: false,
           requiresVerification: true,
           email: artist.email,
           phoneNumber: artist.phoneNumber,
           isEmailVerified: artist.isEmailVerified ?? false,
-          isPhoneVerified: artist.isPhoneVerified ?? false,
           message:
-            'Please verify both your email and phone number to complete your account setup.',
+            'Please verify your email address to complete your account setup.',
         });
       }
 

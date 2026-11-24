@@ -10,16 +10,18 @@ export const activeOnboardingStepState = atom<
 
 export const verificationState = atom<{
   email: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   isEmailVerified: boolean;
-  isPhoneVerified: boolean;
+  isPhoneVerified?: boolean;
+  devCode?: number | string;
 }>({
   key: "VerificationState",
   default: {
     email: "",
     phoneNumber: "",
     isEmailVerified: false,
-    isPhoneVerified: false,
+    isPhoneVerified: true,
+    devCode: undefined,
   },
 });
 
