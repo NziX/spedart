@@ -34,9 +34,6 @@ export default class ArtistsController {
       const newArtist = await Artist.create({
         ...artist,
         status: 'pending',
-        rejectionReason: null,
-        reviewedAt: null,
-        reviewedBy: null,
       });
 
       return res.status(201).json({

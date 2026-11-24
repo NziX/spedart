@@ -298,7 +298,7 @@ export default class AdminController {
 
       artist.status = "approved";
       artist.reviewedAt = new Date();
-      artist.reviewedBy = currentAdmin?._id || null;
+      artist.reviewedBy = (currentAdmin?._id as any) || null;
       artist.rejectionReason = null;
       await artist.save();
 
@@ -359,7 +359,7 @@ export default class AdminController {
       artist.status = "rejected";
       artist.rejectionReason = rejectionReason;
       artist.reviewedAt = new Date();
-      artist.reviewedBy = currentAdmin?._id || null;
+      artist.reviewedBy = (currentAdmin?._id as any) || null;
       await artist.save();
 
       // Send rejection notification email
