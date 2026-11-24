@@ -311,11 +311,11 @@ export default class AdminController {
       try {
         await sendEmail({
           to: artist.email,
-          subject: "Your Artist Account Has Been Approved! - Supported",
+          subject: "Your Artist Account Has Been Approved! - SpedArt",
           body: `
             <p>Congratulations ${artist.stageName || artist.firstName}!</p>
-            <p>Your artist account on Supported has been reviewed and approved by an administrator.</p>
-            <p>You can now log in to upload your pre-releases, connect with fans, and share your art.</p>
+            <p>Your artist account on <strong>SpedArt</strong> has been reviewed and approved by an administrator.</p>
+            <p>You can now log in to upload your pre-releases, connect with fans, and share your music.</p>
           `,
         });
       } catch (mailError) {
@@ -371,12 +371,12 @@ export default class AdminController {
       try {
         await sendEmail({
           to: artist.email,
-          subject: "Update on Your Artist Account Application - Supported",
+          subject: "Update on Your Artist Account Application - SpedArt",
           body: `
             <p>Hello ${artist.stageName || artist.firstName},</p>
-            <p>Thank you for your interest in joining Supported. After review, your artist account application was not approved.</p>
+            <p>Thank you for your interest in joining <strong>SpedArt</strong>. After review, your artist account application was not approved.</p>
             <p><strong>Reason:</strong> ${rejectionReason}</p>
-            <p>If you believe this decision was made in error or would like to provide additional information, please contact our support team.</p>
+            <p>If you believe this decision was made in error or would like to provide additional information, please contact our support team at spedart@gmail.com.</p>
           `,
         });
       } catch (mailError) {

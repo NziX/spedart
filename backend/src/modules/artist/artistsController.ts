@@ -49,12 +49,16 @@ export default class ArtistsController {
       // Dispatch the verification email before creating the artist record
       const emailResult = await sendEmail({
         to: artist.email,
-        subject: 'Verify Your Email Address - Supported',
+        subject: 'Verify Your Email Address - SpedArt',
         body: `
-          <p>Welcome to Supported, ${artist.stageName || artist.firstName}!</p>
-          <p>Your email verification code is:</p>
-          <h2 style="letter-spacing: 4px; font-size: 28px; color: #4F46E5;">${emailCode}</h2>
-          <p>This code will expire in 15 minutes. Please enter it to verify your email.</p>
+          <p>Welcome to <strong>SpedArt</strong>, ${artist.stageName || artist.firstName}!</p>
+          <p>Thank you for signing up as an artist. Please enter the verification code below to verify your email address:</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <span style="display: inline-block; padding: 12px 28px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4F46E5; background-color: #EEF2FF; border-radius: 8px; border: 1px dashed #6366F1;">
+              ${emailCode}
+            </span>
+          </div>
+          <p style="color: #6B7280; font-size: 14px;">This code will expire in 15 minutes. Please do not share this code with anyone.</p>
         `,
       });
 
@@ -268,12 +272,16 @@ export default class ArtistsController {
 
       const emailResult = await sendEmail({
         to: artist.email,
-        subject: 'Your Email Verification Code - Supported',
+        subject: 'Your New Verification Code - SpedArt',
         body: `
           <p>Hello ${artist.stageName || artist.firstName},</p>
-          <p>Your new email verification code is:</p>
-          <h2 style="letter-spacing: 4px; font-size: 28px; color: #4F46E5;">${code}</h2>
-          <p>This code will expire in 15 minutes.</p>
+          <p>Here is your new verification code for your <strong>SpedArt</strong> account:</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <span style="display: inline-block; padding: 12px 28px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4F46E5; background-color: #EEF2FF; border-radius: 8px; border: 1px dashed #6366F1;">
+              ${code}
+            </span>
+          </div>
+          <p style="color: #6B7280; font-size: 14px;">This code will expire in 15 minutes.</p>
         `,
       });
 
@@ -549,8 +557,17 @@ export default class ArtistsController {
       await artist.save();
       const response = await sendEmail({
         to: email,
-        subject: 'Verification code',
-        body: `Your verification code is ${code}`,
+        subject: 'Reset Your Password - SpedArt',
+        body: `
+          <p>Hello,</p>
+          <p>We received a request to reset your password for your <strong>SpedArt</strong> account.</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <span style="display: inline-block; padding: 12px 28px; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #4F46E5; background-color: #EEF2FF; border-radius: 8px; border: 1px dashed #6366F1;">
+              ${code}
+            </span>
+          </div>
+          <p style="color: #6B7280; font-size: 14px;">This code will expire in 60 minutes. If you did not request a password reset, you can safely ignore this email.</p>
+        `,
       });
       if (!response.sent) {
         return res.status(500).json({
