@@ -103,23 +103,30 @@ export const sendEmail = async ({
     }
   }
 
-  // 2. If Resend HTTPS API Key is configured as fallback
+  // 2. If Resend HTTPS API Key is configured
   if (process.env.RESEND_API_KEY) {
     try {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || fromAddress;
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'SpedArt <onboarding@resend.dev>';
       await axios.post(
         'https://api.resend.com/emails',
         {
           from: fromEmail,
           to: [to],
+          reply_to: emailUser,
           subject: subject,
           html: `
             <div style="font-family: Arial, Helvetica, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 10px; background-color: #ffffff;">
               <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #f3f4f6;">
                 <h1 style="color: #4F46E5; margin: 0; font-size: 26px; font-weight: bold; letter-spacing: 1px;">SpedArt</h1>
+                <p style="color: #6b7280; font-size: 13px; margin: 4px 0 0 0;">Artist Platform & Pre-Releases</p>
               </div>
               <div style="color: #374151; font-size: 15px; line-height: 1.6; padding-top: 20px;">
                 ${body}
+              </div>
+              <hr style="border: none; border-top: 1px solid #f3f4f6; margin: 30px 0 16px 0;" />
+              <div style="text-align: center; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+                <p style="margin: 0;">Sent by <strong>SpedArt</strong> &bull; <a href="mailto:${emailUser}" style="color: #4F46E5; text-decoration: none;">${emailUser}</a></p>
+                <p style="margin: 4px 0 0 0;">This is an automated message. If you did not make this request, please disregard it.</p>
               </div>
             </div>
           `,
