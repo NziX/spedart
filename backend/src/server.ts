@@ -11,6 +11,7 @@ import artsRouter from './modules/art/artsRouter';
 import supportsRouter from './modules/payment/paymentsRouter';
 import contactMessagesRouter from './modules/contactMessages/contactMessagesRouter';
 import customerRouter from './modules/customer/customerRouter';
+import Artist from './modules/artist/artistModel';
 const PORT = process.env.PORT || 8000;
 
 const app = express();
@@ -18,6 +19,21 @@ app.use(cors());
 dbConnection()
   .then(() => {
     console.log('Database connected');
+
+    // Safe auto-migration: Ensure existing artists without a status are set to approved
+    Artist.updateMany(
+      { $or: [{ status: { $exists: false } }, { status: null }] },
+      { $set: { status: 'approved' } }
+    )
+      .then((res) => {
+        if (res.modifiedCount > 0) {
+          console.log(`Auto-migration: set ${res.modifiedCount} existing artists to 'approved'`);
+        }
+      })
+      .catch((err) => {
+        console.error('Auto-migration error:', err);
+      });
+
     app.listen(PORT, () => {
       console.log(`Server is listening on port ${PORT}`);
     });
