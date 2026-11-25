@@ -130,64 +130,12 @@ export default function NationalIdVerification() {
       const img = new window.Image();
       img.crossOrigin = "anonymous";
       img.onload = async () => {
-        // 1. Resolution Check (reject low-res thumbnails or random icons)
-        if (img.naturalWidth < 300 || img.naturalHeight < 180) {
+        // Basic sanity check: reject corrupt or extremely tiny files (< 150px)
+        if (img.naturalWidth < 150 || img.naturalHeight < 100) {
           return resolve({
             valid: false,
-            reason: "Image resolution is too low. Please upload a full, legible photo of your ID card.",
+            reason: "Image resolution is too low. Please upload a clear photo of your ID card.",
           });
-        }
-
-        // 2. Aspect Ratio Check (ID cards/passports are rectangular, approx 1.2 to 2.2)
-        const ratio = img.naturalWidth / img.naturalHeight;
-        if (ratio < 0.75 || ratio > 2.6) {
-          return resolve({
-            valid: false,
-            reason: "Image aspect ratio does not match an ID card or document. Please upload a landscape photo of your National ID.",
-          });
-        }
-
-        // 3. Canvas Content & Blank check
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.min(img.naturalWidth, 200);
-          canvas.height = Math.min(img.naturalHeight, 130);
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const sample = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            let totalBrightness = 0;
-            for (let i = 0; i < sample.data.length; i += 4) {
-              totalBrightness += (sample.data[i] + sample.data[i + 1] + sample.data[i + 2]) / 3;
-            }
-            const avgBrightness = totalBrightness / (sample.data.length / 4);
-
-            // Reject pure black (< 10) or pure white (> 250) blank images
-            if (avgBrightness < 12 || avgBrightness > 252) {
-              return resolve({
-                valid: false,
-                reason: "The uploaded image appears completely blank or dark. Please provide a clear photo of your ID card.",
-              });
-            }
-
-            // 4. Face Detection on Front ID if supported by browser
-            if (isFront && "FaceDetector" in window) {
-              try {
-                const faceDetector = new (window as any).FaceDetector({ fastMode: true });
-                const faces = await faceDetector.detect(canvas);
-                if (faces && faces.length === 0) {
-                  return resolve({
-                    valid: false,
-                    reason: "No portrait or face detected on the front of this ID. Please make sure your ID photo is clearly visible.",
-                  });
-                }
-              } catch (e) {
-                // If FaceDetector fails or cross-origin limits apply, let it pass to manual admin review
-              }
-            }
-          }
-        } catch (e) {
-          // Fallback if cross-origin canvas security limits access
         }
 
         resolve({ valid: true });

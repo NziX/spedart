@@ -107,7 +107,7 @@ export default function LiveFaceVerification() {
   }, [capturedPhotoUrl, startCamera, stopCamera]);
 
   // Capture still photo from live video feed
-  const capturePhoto = async () => {
+  const capturePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
       notifications.show({
@@ -129,44 +129,6 @@ export default function LiveFaceVerification() {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Verify image is not pitch dark (covered camera lens)
-    try {
-      const sample = ctx.getImageData(0, 0, Math.min(canvas.width, 80), Math.min(canvas.height, 80));
-      let totalBrightness = 0;
-      for (let i = 0; i < sample.data.length; i += 4) {
-        totalBrightness += (sample.data[i] + sample.data[i + 1] + sample.data[i + 2]) / 3;
-      }
-      const avgBrightness = totalBrightness / (sample.data.length / 4);
-      if (avgBrightness < 12) {
-        notifications.show({
-          title: "Camera Covered or Too Dark",
-          message: "The camera view is too dark. Please make sure the camera is not covered and you are in a well-lit room.",
-          color: "red",
-        });
-        return;
-      }
-    } catch (e) {
-      // Ignore canvas security errors if any
-    }
-
-    // Optional native FaceDetector check (Chrome, Edge, Android)
-    if (typeof window !== "undefined" && "FaceDetector" in window) {
-      try {
-        const faceDetector = new (window as any).FaceDetector({ fastMode: true });
-        const faces = await faceDetector.detect(canvas);
-        if (faces && faces.length === 0) {
-          notifications.show({
-            title: "No Face Detected",
-            message: "We could not detect a face. Please align your face inside the oval and look at the camera.",
-            color: "red",
-          });
-          return;
-        }
-      } catch (e) {
-        // Fallback gracefully
-      }
-    }
 
     canvas.toBlob(
       (blob) => {
