@@ -122,7 +122,7 @@ async function callGeminiVision(
   apiKey: string,
   parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }>
 ): Promise<string | null> {
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
+  const models = ['gemini-3.8-flash', 'gemini-4-hydrogen', 'gemini-flash-latest', 'gemini-2.5-flash'];
 
   for (const model of models) {
     try {
