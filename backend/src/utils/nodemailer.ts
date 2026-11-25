@@ -30,7 +30,7 @@ export const sendEmail = async ({
         {
           from: fromEmail,
           to: [to],
-          reply_to: emailUser,
+          reply_to: process.env.RESEND_REPLY_TO || fromEmail,
           subject: subject,
           html: `
             <div style="font-family: Arial, Helvetica, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 10px; background-color: #ffffff;">

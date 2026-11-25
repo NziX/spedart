@@ -64,11 +64,12 @@ export default class ArtistsController {
       });
 
       if (!emailResult.sent) {
+        // Log the raw email error for debugging on Render
+        console.error('[createArtist] Email send failed:', emailResult.error);
         return res.status(400).json({
           success: false,
           message:
-            emailResult.error ||
-            'The email address provided could not be reached. Please verify that your email exists and is active.',
+            'We could not send a verification email to that address. Please check your email and try again.',
         });
       }
 
