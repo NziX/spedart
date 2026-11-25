@@ -43,6 +43,15 @@ export default function LiveFaceVerification() {
       ? JSON.parse(localStorage.getItem("pendingVerification") || "{}")?.email || ""
       : "");
 
+  // Attach video stream to ref callback so it is never null on mount
+  const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element;
+    if (element && streamRef.current) {
+      element.srcObject = streamRef.current;
+      element.play().catch((err) => console.log("Video playback ready", err));
+    }
+  }, []);
+
   // Start device live camera stream
   const startCamera = useCallback(async () => {
     setCameraError(null);
@@ -98,7 +107,7 @@ export default function LiveFaceVerification() {
   }, [capturedPhotoUrl, startCamera, stopCamera]);
 
   // Capture still photo from live video feed
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
       notifications.show({
@@ -120,6 +129,44 @@ export default function LiveFaceVerification() {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Verify image is not pitch dark (covered camera lens)
+    try {
+      const sample = ctx.getImageData(0, 0, Math.min(canvas.width, 80), Math.min(canvas.height, 80));
+      let totalBrightness = 0;
+      for (let i = 0; i < sample.data.length; i += 4) {
+        totalBrightness += (sample.data[i] + sample.data[i + 1] + sample.data[i + 2]) / 3;
+      }
+      const avgBrightness = totalBrightness / (sample.data.length / 4);
+      if (avgBrightness < 12) {
+        notifications.show({
+          title: "Camera Covered or Too Dark",
+          message: "The camera view is too dark. Please make sure the camera is not covered and you are in a well-lit room.",
+          color: "red",
+        });
+        return;
+      }
+    } catch (e) {
+      // Ignore canvas security errors if any
+    }
+
+    // Optional native FaceDetector check (Chrome, Edge, Android)
+    if (typeof window !== "undefined" && "FaceDetector" in window) {
+      try {
+        const faceDetector = new (window as any).FaceDetector({ fastMode: true });
+        const faces = await faceDetector.detect(canvas);
+        if (faces && faces.length === 0) {
+          notifications.show({
+            title: "No Face Detected",
+            message: "We could not detect a face. Please align your face inside the oval and look at the camera.",
+            color: "red",
+          });
+          return;
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    }
 
     canvas.toBlob(
       (blob) => {
@@ -243,6 +290,17 @@ export default function LiveFaceVerification() {
       {/* Camera / Captured Viewfinder Box */}
       <div className="w-full flex flex-col items-center">
         <div className="relative w-full max-w-xs aspect-[3/4] sm:aspect-square rounded-2xl overflow-hidden border-2 border-primary/20 bg-black flex items-center justify-center shadow-inner">
+          {/* Always mounted video element so ref is never null */}
+          <video
+            ref={setVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`w-full h-full object-cover scale-x-[-1] ${
+              cameraActive && !capturedPhotoUrl ? "block" : "hidden"
+            }`}
+          />
+
           {capturedPhotoUrl ? (
             /* Still Snapshot Preview */
             <div className="relative w-full h-full">
@@ -259,17 +317,8 @@ export default function LiveFaceVerification() {
               </div>
             </div>
           ) : cameraActive ? (
-            /* Live Camera Stream with Oval Guideline */
-            <div className="relative w-full h-full flex items-center justify-center">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover scale-x-[-1]"
-              />
-
-              {/* Oval Face Guide Overlay */}
+            /* Oval Guideline Overlay */
+            <>
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="w-56 h-72 sm:w-60 sm:h-72 rounded-[50%] border-2 border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] flex items-center justify-center">
                   <div className="text-[10px] uppercase font-bold tracking-wider text-white/90 bg-black/60 px-2.5 py-1 rounded-full backdrop-blur-xs">
@@ -278,12 +327,11 @@ export default function LiveFaceVerification() {
                 </div>
               </div>
 
-              {/* Live Status indicator */}
               <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 text-white text-[10px] px-2.5 py-1 rounded-full backdrop-blur-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 Live Camera
               </div>
-            </div>
+            </>
           ) : (
             /* Camera Off / Permission Error View */
             <div className="p-6 text-center text-white flex flex-col items-center space-y-3">
