@@ -23,7 +23,7 @@ export const sendEmail = async ({
   // 1. If Resend HTTPS API Key is configured (Fast HTTPS API on port 443 - instantaneous, never blocked by host firewalls)
   if (process.env.RESEND_API_KEY) {
     try {
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'SpedArt <onboarding@resend.dev>';
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'SpedArt <support@spedart.com>';
       console.log(`[Dispatching email via Resend to ${to}...]`);
       const resendRes = await axios.post(
         'https://api.resend.com/emails',
