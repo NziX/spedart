@@ -225,27 +225,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		profilePicture: string;
 	}) => {
 		setCompletingProfile(true);
-		const newUser = {
-			...artist,
-			bio: journey,
-			profilePicture,
-		};
+		const activeEmail =
+			artist?.email ||
+			verificationData.email ||
+			(typeof window !== "undefined"
+				? JSON.parse(localStorage.getItem("pendingVerification") || "{}")?.email || ""
+				: "");
 
 		try {
-			const { data } = await axios.put(`/artists`, newUser);
+			const { data } = await axios.post(`/artists/complete-profile`, {
+				email: activeEmail,
+				bio: journey,
+				profilePicture,
+			});
 			notifications.show({
-				message: "Profile updated successfully!",
+				title: "All Requirements Submitted!",
+				message: "Your application is complete and has been submitted for administrator review.",
 				color: "teal",
 			});
-			setArtist(data.artist);
-			localStorage.setItem(UIDHASH, JSON.stringify(data.artist));
+			if (data?.artist) {
+				setArtist(data.artist);
+				localStorage.setItem(UIDHASH, JSON.stringify(data.artist));
+			}
 			setOnboardingData({});
-			router.push("/dashboard");
+			setActiveOnboardingStep("awaiting_approval");
 		} catch (error: any) {
 			console.log(error);
 			notifications.show({
 				message:
-					error?.response?.data?.message ?? "An error occurred",
+					error?.response?.data?.message ?? "An error occurred while submitting your profile",
 				color: "red",
 			});
 		} finally {

@@ -89,15 +89,15 @@ export default function NationalIdVerification() {
       });
 
       notifications.show({
-        title: "ID Documents Submitted",
+        title: "ID Documents Saved",
         message:
           data?.message ||
-          "Your National ID has been successfully submitted. Our team will verify your identity before activating your account.",
+          "Your National ID has been saved. Next, let fans know about your artist journey.",
         color: "teal",
       });
 
-      // Advance to awaiting approval screen
-      setActiveStep("awaiting_approval");
+      // Advance to artist journey screen
+      setActiveStep("artist_journey");
     } catch (error: any) {
       notifications.show({
         title: "Submission Failed",
@@ -327,11 +327,11 @@ export default function NationalIdVerification() {
           >
             {submitting ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Submitting for Admin Verification...
+                <Loader2 className="w-5 h-5 animate-spin" /> Saving ID &amp; Continuing...
               </>
             ) : (
               <>
-                Submit ID &amp; Complete Verification <ArrowRight className="w-4 h-4" />
+                Save ID &amp; Continue to Artist Journey <ArrowRight className="w-4 h-4" />
               </>
             )}
           </Button>

@@ -34,10 +34,16 @@ export default function ArtistJourney() {
                 />
             </div>
             <div className='w-full space-y-4 md:px-6 lg:px-10'>
-                <ProgressIndicator percentage={100 * (1 / 3)} />
+                <ProgressIndicator percentage={66} />
                 <div className='flex justify-between items-center'>
                     <Button
-                        onClick={() => setActiveStep("profile")}
+                        variant='secondary'
+                        onClick={() => setActiveStep('national_id')}
+                    >
+                        Previous
+                    </Button>
+                    <Button
+                        onClick={() => setActiveStep('profile')}
                     >
                         Save & continue
                     </Button>

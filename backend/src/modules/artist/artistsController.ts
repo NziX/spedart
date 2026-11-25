@@ -417,6 +417,59 @@ export default class ArtistsController {
     }
   }
 
+  public static async completeOnboardingProfile(req: Request, res: Response) {
+    try {
+      const { email, bio, profilePicture } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is required.',
+        });
+      }
+
+      const artist = await Artist.findOne({
+        email: { $regex: new RegExp(`^${email.trim()}$`, 'i') },
+      });
+
+      if (!artist) {
+        return res.status(404).json({
+          success: false,
+          message: 'Artist not found.',
+        });
+      }
+
+      if (bio !== undefined) artist.bio = bio;
+      if (profilePicture !== undefined) artist.profilePicture = profilePicture;
+
+      await artist.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Onboarding profile details saved successfully.',
+        artist: {
+          _id: artist._id,
+          firstName: artist.firstName,
+          lastName: artist.lastName,
+          stageName: artist.stageName,
+          email: artist.email,
+          phoneNumber: artist.phoneNumber,
+          bio: artist.bio,
+          profilePicture: artist.profilePicture,
+          status: artist.status,
+          nationalId: artist.nationalId,
+          isEmailVerified: artist.isEmailVerified,
+        },
+      });
+    } catch (error: any) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || 'Internal server error while saving profile.',
+      });
+    }
+  }
+
   public static async loginArtist(req: Request, res: Response) {
     try {
       const { email, password } = req.body;

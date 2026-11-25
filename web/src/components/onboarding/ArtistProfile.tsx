@@ -74,7 +74,7 @@ export default function ArtistProfile() {
 				</div>
 			</div>
 			<div className="w-full space-y-4 md:px-6 lg:px-10">
-				<ProgressIndicator percentage={100 * (2 / 3)} />
+				<ProgressIndicator percentage={100} />
 				<div className="flex justify-between items-center">
 					<Button
 						disabled={completingProfile}
@@ -90,7 +90,7 @@ export default function ArtistProfile() {
 						{completingProfile ? (
 							<Loader color="white" />
 						) : (
-							"Complete profile"
+							"Complete & Submit for Approval"
 						)}
 					</Button>
 				</div>
