@@ -29,6 +29,22 @@ export interface IArtistDocument extends mongoose.Document {
     faceVerifiedAt?: Date;
     submittedAt?: Date;
     isVerified?: boolean;
+    autoVerification?: {
+      status?: "passed" | "rejected" | "manual_review_required" | "pending";
+      isLegalId?: boolean;
+      idDocumentType?: string;
+      extractedIdNumber?: string;
+      idNumberMatches?: boolean;
+      documentLegalityScore?: number;
+      documentLegalityReason?: string;
+      isSamePerson?: boolean;
+      faceMatchConfidence?: number;
+      faceMatchReason?: string;
+      isLivePhoto?: boolean;
+      verifiedAt?: Date;
+      engine?: "gemini_multimodal_ai" | "biometric_fallback";
+      rejectionReason?: string | null;
+    };
   };
   pendingWithdrawal: boolean;
   status: "pending" | "approved" | "rejected";
@@ -117,6 +133,26 @@ const artistSchema = new mongoose.Schema(
       faceVerifiedAt: { type: Date, default: null },
       submittedAt: { type: Date, default: null },
       isVerified: { type: Boolean, default: false },
+      autoVerification: {
+        status: {
+          type: String,
+          enum: ["passed", "rejected", "manual_review_required", "pending"],
+          default: null,
+        },
+        isLegalId: { type: Boolean, default: false },
+        idDocumentType: { type: String, default: null },
+        extractedIdNumber: { type: String, default: null },
+        idNumberMatches: { type: Boolean, default: false },
+        documentLegalityScore: { type: Number, default: 0 },
+        documentLegalityReason: { type: String, default: null },
+        isSamePerson: { type: Boolean, default: false },
+        faceMatchConfidence: { type: Number, default: 0 },
+        faceMatchReason: { type: String, default: null },
+        isLivePhoto: { type: Boolean, default: false },
+        verifiedAt: { type: Date, default: null },
+        engine: { type: String, default: null },
+        rejectionReason: { type: String, default: null },
+      },
     },
     pendingWithdrawal: {
       type: Boolean,

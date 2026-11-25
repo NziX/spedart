@@ -9,6 +9,7 @@ import { validateArtist } from './artistValidator';
 import Art from '../art/artModel';
 import { generateToken } from '../../utils/jwt';
 import { getCurrentUser } from '../../utils/currentUser';
+import { AiVerificationService } from '../../services/aiVerificationService';
 
 export default class ArtistsController {
   public static async createArtist(req: Request, res: Response) {
@@ -393,19 +394,52 @@ export default class ArtistsController {
         });
       }
 
+      // 1. Run automated ID legality & authenticity validation
+      const docCheck = await AiVerificationService.verifyIdDocument({
+        frontImageUrl: frontImage.trim(),
+        backImageUrl: backImage.trim(),
+        idNumber: idNumber.trim(),
+        artistName: `${artist.firstName} ${artist.lastName}`,
+      });
+
+      if (!docCheck.passed) {
+        return res.status(400).json({
+          success: false,
+          message:
+            docCheck.reason ||
+            'The uploaded document does not appear to be an authentic government-issued ID card or passport. Please upload a clear photo of your official National ID.',
+        });
+      }
+
       artist.nationalId = {
         idNumber: idNumber.trim(),
         frontImage: frontImage.trim(),
         backImage: backImage.trim(),
         submittedAt: new Date(),
         isVerified: false,
+        autoVerification: {
+          status: 'pending',
+          isLegalId: docCheck.isLegalId,
+          idDocumentType: docCheck.documentType,
+          extractedIdNumber: docCheck.extractedIdNumber,
+          idNumberMatches: docCheck.idNumberMatches,
+          documentLegalityScore: docCheck.legalityScore,
+          documentLegalityReason: docCheck.reason,
+          isSamePerson: false,
+          faceMatchConfidence: 0,
+          faceMatchReason: 'Pending live facecam verification capture.',
+          isLivePhoto: false,
+          verifiedAt: new Date(),
+          engine: docCheck.engine,
+          rejectionReason: null,
+        },
       };
 
       await artist.save();
 
       return res.status(200).json({
         success: true,
-        message: 'National ID documents uploaded successfully and submitted for review.',
+        message: 'National ID documents validated and saved. Next, confirm your identity with live facecam.',
         nationalId: artist.nationalId,
       });
     } catch (error: any) {
@@ -446,18 +480,52 @@ export default class ArtistsController {
         });
       }
 
-      if (!artist.nationalId) {
-        artist.nationalId = {} as any;
+      if (!artist.nationalId || !artist.nationalId.frontImage) {
+        return res.status(400).json({
+          success: false,
+          message: 'National ID scan is missing. Please scan or upload your National ID first.',
+        });
       }
 
-      artist.nationalId!.liveFacePhoto = liveFacePhoto.trim();
-      artist.nationalId!.faceVerifiedAt = new Date();
+      // 2. Run automated biometric face matching and ID legality verification
+      const fullVerification = await AiVerificationService.verifyNationalIdAndFace({
+        frontImageUrl: artist.nationalId.frontImage,
+        backImageUrl: artist.nationalId.backImage,
+        liveFaceImageUrl: liveFacePhoto.trim(),
+        idNumber: artist.nationalId.idNumber || '',
+        artistName: `${artist.firstName} ${artist.lastName}`,
+      });
+
+      artist.nationalId.liveFacePhoto = liveFacePhoto.trim();
+      artist.nationalId.faceVerifiedAt = new Date();
+      artist.nationalId.autoVerification = fullVerification;
+
+      if (fullVerification.status === 'passed') {
+        artist.nationalId.isVerified = true;
+      }
 
       await artist.save();
 
+      if (fullVerification.status === 'rejected') {
+        return res.status(400).json({
+          success: false,
+          verificationStatus: 'rejected',
+          message:
+            fullVerification.rejectionReason ||
+            'Biometric verification failed: The person in the live camera does not match the portrait on your National ID.',
+          autoVerification: fullVerification,
+          nationalId: artist.nationalId,
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        message: 'Live face capture verified and saved successfully.',
+        verificationStatus: fullVerification.status,
+        message:
+          fullVerification.status === 'passed'
+            ? `Identity verified successfully! Biometric match confirmed (${fullVerification.faceMatchConfidence}% confidence).`
+            : 'Live face capture recorded. Your application has been submitted for admin review.',
+        autoVerification: fullVerification,
         nationalId: artist.nationalId,
       });
     } catch (error: any) {

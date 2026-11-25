@@ -27,6 +27,22 @@ export interface Artist extends Base {
 		faceVerifiedAt?: string;
 		submittedAt?: string;
 		isVerified?: boolean;
+		autoVerification?: {
+			status?: "passed" | "rejected" | "manual_review_required" | "pending";
+			isLegalId?: boolean;
+			idDocumentType?: string;
+			extractedIdNumber?: string;
+			idNumberMatches?: boolean;
+			documentLegalityScore?: number;
+			documentLegalityReason?: string;
+			isSamePerson?: boolean;
+			faceMatchConfidence?: number;
+			faceMatchReason?: string;
+			isLivePhoto?: boolean;
+			verifiedAt?: string;
+			engine?: "gemini_multimodal_ai" | "biometric_fallback";
+			rejectionReason?: string | null;
+		};
 	};
 	balance?: number;
 	pendingWithdrawal?: boolean;

@@ -35,6 +35,7 @@ export default function LiveFaceVerification() {
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   const activeEmail =
     verificationData.email ||
@@ -108,6 +109,7 @@ export default function LiveFaceVerification() {
 
   // Capture still photo from live video feed
   const capturePhoto = () => {
+    setVerificationError(null);
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) {
       notifications.show({
@@ -170,6 +172,7 @@ export default function LiveFaceVerification() {
       return;
     }
 
+    setVerificationError(null);
     setSubmitting(true);
     try {
       // 1. Convert captured blob to a File object for UploadThing
@@ -190,32 +193,47 @@ export default function LiveFaceVerification() {
 
       const livePhotoUrl = uploaded[0].url;
 
-      // 3. Save to backend artist profile
+      // 3. Save to backend artist profile and run automatic face & ID matching
       const { data } = await axios.post("/artists/submit-live-face", {
         email: activeEmail.trim(),
         liveFacePhoto: livePhotoUrl,
       });
 
-      notifications.show({
-        title: "Live Face Verified!",
-        message:
-          data?.message ||
-          "Your live face verification has been captured. Next, tell fans about your artist journey.",
-        color: "teal",
-      });
+      if (data?.autoVerification?.status === "passed") {
+        notifications.show({
+          title: "Identity Verified! 🎉",
+          message:
+            data?.message ||
+            `Face matches National ID portrait (${data.autoVerification.faceMatchConfidence}% match confidence). Moving to artist journey...`,
+          color: "teal",
+        });
+      } else {
+        notifications.show({
+          title: "Live Face Recorded",
+          message:
+            data?.message ||
+            "Your live face verification has been captured. Next, tell fans about your artist journey.",
+          color: "teal",
+        });
+      }
 
       // 4. Advance to Artist Journey step
       setActiveStep("artist_journey");
     } catch (error: any) {
       console.error("Live face submission error:", error);
+      const errMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Could not verify live face. Please make sure your camera capture is clear and matches your ID.";
+      setVerificationError(errMsg);
       notifications.show({
-        title: "Submission Error",
-        message:
-          error?.response?.data?.message ||
-          error?.message ||
-          "Could not save live face verification. Please try again.",
+        title: "Biometric Verification Alert",
+        message: errMsg,
         color: "red",
+        autoClose: 9000,
       });
+      // Clear snapshot and restart camera so applicant can immediately retake
+      retakePhoto();
     } finally {
       setSubmitting(false);
     }
@@ -248,6 +266,26 @@ export default function LiveFaceVerification() {
           </p>
         </div>
       </div>
+
+      {verificationError && (
+        <div className="w-full bg-red-50 border border-red-300 rounded-xl p-4 flex items-start gap-3 text-red-950 text-xs">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-1.5">
+            <p className="font-semibold text-red-900">Face &amp; ID Verification Failed</p>
+            <p className="text-red-800 leading-relaxed">{verificationError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                stopCamera();
+                setActiveStep("national_id");
+              }}
+              className="text-red-900 underline font-semibold hover:text-red-700"
+            >
+              Need to re-upload a different ID card? Click here &rarr;
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Camera / Captured Viewfinder Box */}
       <div className="w-full flex flex-col items-center">
@@ -325,7 +363,7 @@ export default function LiveFaceVerification() {
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Verifying &amp; Saving...
+                    <Loader2 className="w-4 h-4 animate-spin" /> Verifying Face &amp; ID Biometrics...
                   </>
                 ) : (
                   <>

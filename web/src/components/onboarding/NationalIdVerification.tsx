@@ -42,6 +42,7 @@ export default function NationalIdVerification() {
   const [frontImage, setFrontImage] = useState<string | null>(null);
   const [backImage, setBackImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // Live ID camera scanner state
   const [scanningSide, setScanningSide] = useState<"front" | "back" | null>(null);
@@ -322,6 +323,7 @@ export default function NationalIdVerification() {
       return;
     }
 
+    setVerificationError(null);
     setSubmitting(true);
     try {
       const { data } = await axios.post("/artists/submit-national-id", {
@@ -342,12 +344,15 @@ export default function NationalIdVerification() {
       // Advance to live face verification screen
       setActiveStep("live_face_verification");
     } catch (error: any) {
+      const errMsg =
+        error?.response?.data?.message ||
+        "Could not verify your ID documents. Please upload a clear photo of an authentic government ID or passport.";
+      setVerificationError(errMsg);
       notifications.show({
-        title: "Submission Failed",
-        message:
-          error?.response?.data?.message ||
-          "Could not submit your ID documents. Please try again or contact support.",
+        title: "ID Document Verification Failed",
+        message: errMsg,
         color: "red",
+        autoClose: 8000,
       });
     } finally {
       setSubmitting(false);
@@ -380,10 +385,20 @@ export default function NationalIdVerification() {
           <p className="text-blue-800 leading-relaxed text-xs">
             You must provide photos of a genuine government-issued ID card or Passport.
             Uploading non-ID photos (such as random images, memes, or screenshots) will be rejected
-            by administrators and will result in account suspension.
+            by our automated verification system and administrators.
           </p>
         </div>
       </div>
+
+      {verificationError && (
+        <div className="w-full bg-red-50 border border-red-300 rounded-xl p-4 flex items-start gap-3 text-red-950 text-xs sm:text-sm">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-red-900">ID Verification Rejected</p>
+            <p className="text-red-800 leading-relaxed text-xs">{verificationError}</p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="w-full space-y-6">
         {/* National ID Number */}
@@ -592,7 +607,7 @@ export default function NationalIdVerification() {
           >
             {submitting ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Saving ID &amp; Continuing...
+                <Loader2 className="w-5 h-5 animate-spin" /> Verifying ID Authenticity...
               </>
             ) : (
               <>

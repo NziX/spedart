@@ -9,6 +9,7 @@ import Art from "../art/artModel";
 import Like from "../art/likeModel";
 import Streams from "../art/playsModel";
 import { sendEmail } from "../../utils/nodemailer";
+import { AiVerificationService } from "../../services/aiVerificationService";
 
 export default class AdminController {
   public static async createAdmin(req: Request, res: Response) {
@@ -467,6 +468,66 @@ export default class AdminController {
       return res.status(500).json({
         success: false,
         message: error?.message || "Internal server error while deleting artist",
+      });
+    }
+  }
+
+  public static async runAiVerification(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const artist = await Artist.findById(id);
+
+      if (!artist) {
+        return res.status(404).json({
+          success: false,
+          message: "Artist not found",
+        });
+      }
+
+      if (!artist.nationalId?.frontImage) {
+        return res.status(400).json({
+          success: false,
+          message: "Artist has not uploaded a National ID front scan.",
+        });
+      }
+
+      if (!artist.nationalId?.liveFacePhoto) {
+        return res.status(400).json({
+          success: false,
+          message: "Artist has not completed the live face verification capture.",
+        });
+      }
+
+      const fullVerification = await AiVerificationService.verifyNationalIdAndFace({
+        frontImageUrl: artist.nationalId.frontImage,
+        backImageUrl: artist.nationalId.backImage,
+        liveFaceImageUrl: artist.nationalId.liveFacePhoto,
+        idNumber: artist.nationalId.idNumber || '',
+        artistName: `${artist.firstName} ${artist.lastName}`,
+      });
+
+      artist.nationalId.autoVerification = fullVerification;
+      if (fullVerification.status === 'passed') {
+        artist.nationalId.isVerified = true;
+      }
+      await artist.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          fullVerification.status === 'passed'
+            ? 'AI Biometric & ID verification passed!'
+            : fullVerification.status === 'rejected'
+            ? 'AI verification flagged potential mismatch or invalid document.'
+            : 'AI verification completed (manual inspection recommended).',
+        autoVerification: fullVerification,
+        artist,
+      });
+    } catch (error: any) {
+      console.error("Error running AI verification:", error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || "Failed to execute AI verification.",
       });
     }
   }

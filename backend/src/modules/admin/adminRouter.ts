@@ -42,6 +42,11 @@ router.post(
   adminAuthValidator,
   AdminController.rejectArtist
 );
+router.post(
+  "/artists/:id/verify-id",
+  adminAuthValidator,
+  AdminController.runAiVerification
+);
 router.delete(
   "/artists/:id",
   adminAuthValidator,

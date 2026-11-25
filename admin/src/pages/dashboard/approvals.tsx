@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import axios from "@/lib/axios.config";
 import { Artist } from "@/types";
 import { notifications } from "@mantine/notifications";
-import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle, Eye, ShieldCheck, CreditCard, ExternalLink, Camera, UserCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle, Eye, ShieldCheck, CreditCard, ExternalLink, Camera, UserCheck, Sparkles, Loader2, RefreshCw } from "lucide-react";
 
 type ArtistStatus = "pending" | "approved" | "rejected";
 
@@ -35,6 +35,7 @@ export default function ArtistApprovals() {
 
   const [idModalOpen, setIdModalOpen] = useState(false);
   const [selectedArtistForId, setSelectedArtistForId] = useState<Artist | null>(null);
+  const [isVerifyingAi, setIsVerifyingAi] = useState(false);
   const [approveWarningModalOpen, setApproveWarningModalOpen] = useState(false);
   const [artistToApproveWithWarning, setArtistToApproveWithWarning] = useState<Artist | null>(null);
 
@@ -87,12 +88,50 @@ export default function ArtistApprovals() {
     const hasFront = Boolean(artist.nationalId?.frontImage);
     const hasBack = Boolean(artist.nationalId?.backImage);
     const hasLiveFace = Boolean(artist.nationalId?.liveFacePhoto);
-    if (!hasFront || !hasBack || !hasLiveFace) {
+    const aiRejected = artist.nationalId?.autoVerification?.status === "rejected";
+    if (!hasFront || !hasBack || !hasLiveFace || aiRejected) {
       setArtistToApproveWithWarning(artist);
       setApproveWarningModalOpen(true);
       return;
     }
     handleApprove(artist);
+  };
+
+  const handleRunAiVerification = async (artistId: string) => {
+    setIsVerifyingAi(true);
+    try {
+      const { data } = await axios.post(`/admin/artists/${artistId}/verify-id`);
+      notifications.show({
+        title: "AI Verification Complete",
+        message:
+          data?.message ||
+          "Automated ID & Face verification executed successfully.",
+        color:
+          data?.autoVerification?.status === "passed"
+            ? "teal"
+            : data?.autoVerification?.status === "rejected"
+            ? "red"
+            : "yellow",
+      });
+      if (
+        selectedArtistForId &&
+        selectedArtistForId._id === artistId &&
+        data?.artist
+      ) {
+        setSelectedArtistForId(data.artist);
+      }
+      await mutate();
+    } catch (err: any) {
+      notifications.show({
+        title: "Verification Error",
+        message:
+          err?.response?.data?.message ||
+          "Could not run automated AI verification.",
+        color: "red",
+      });
+    } finally {
+      setIsVerifyingAi(false);
+    }
   };
 
   const openDeleteModal = (artist: Artist) => {
@@ -228,6 +267,7 @@ export default function ArtistApprovals() {
         const hasBack = Boolean(row.nationalId?.backImage);
         const hasLiveFace = Boolean(row.nationalId?.liveFacePhoto);
         const hasId = hasFront && hasBack;
+        const autoVer = row.nationalId?.autoVerification;
 
         return (
           <div className="space-y-1.5">
@@ -248,11 +288,27 @@ export default function ArtistApprovals() {
 
               {hasLiveFace ? (
                 <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[10px] px-1.5 py-0 flex items-center gap-1">
-                  <Camera className="w-3 h-3 text-blue-600" /> Live Face Verified
+                  <Camera className="w-3 h-3 text-blue-600" /> Live Face Captured
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] px-1.5 py-0 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 text-amber-500" /> Live Face Missing
+                </Badge>
+              )}
+
+              {autoVer?.status === "passed" && (
+                <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-teal-600" /> AI Verified ({autoVer.faceMatchConfidence || 0}% Match)
+                </Badge>
+              )}
+              {autoVer?.status === "rejected" && (
+                <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <XCircle className="w-3 h-3 text-red-600" /> AI Flagged
+                </Badge>
+              )}
+              {autoVer?.status === "manual_review_required" && (
+                <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-amber-600" /> Manual Review Req.
                 </Badge>
               )}
             </div>
@@ -656,6 +712,215 @@ export default function ArtistApprovals() {
                 </div>
               </div>
 
+              {/* Automated AI Biometric & Legal ID Verification Report */}
+              {selectedArtistForId.nationalId?.autoVerification ? (
+                <div
+                  className={`rounded-xl border p-3.5 space-y-3 ${
+                    selectedArtistForId.nationalId.autoVerification.status === "passed"
+                      ? "bg-emerald-50/60 border-emerald-200"
+                      : selectedArtistForId.nationalId.autoVerification.status === "rejected"
+                      ? "bg-red-50/60 border-red-200"
+                      : "bg-amber-50/60 border-amber-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles
+                        className={`w-4 h-4 ${
+                          selectedArtistForId.nationalId.autoVerification.status === "passed"
+                            ? "text-emerald-600"
+                            : selectedArtistForId.nationalId.autoVerification.status === "rejected"
+                            ? "text-red-600"
+                            : "text-amber-600"
+                        }`}
+                      />
+                      <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                        Automated AI Verification Report
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {selectedArtistForId.nationalId.autoVerification.status === "passed" && (
+                        <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] gap-1 px-2 py-0.5">
+                          <CheckCircle2 className="w-3 h-3" /> VERIFIED (Legal ID &amp; Face Matched)
+                        </Badge>
+                      )}
+                      {selectedArtistForId.nationalId.autoVerification.status === "rejected" && (
+                        <Badge className="bg-red-600 hover:bg-red-600 text-white text-[10px] gap-1 px-2 py-0.5">
+                          <XCircle className="w-3 h-3" /> FLAGGED / REJECTED
+                        </Badge>
+                      )}
+                      {selectedArtistForId.nationalId.autoVerification.status === "manual_review_required" && (
+                        <Badge className="bg-amber-600 hover:bg-amber-600 text-white text-[10px] gap-1 px-2 py-0.5">
+                          <AlertTriangle className="w-3 h-3" /> MANUAL REVIEW REQUIRED
+                        </Badge>
+                      )}
+                      {selectedArtistForId.nationalId.autoVerification.status === "pending" && (
+                        <Badge className="bg-slate-600 hover:bg-slate-600 text-white text-[10px] gap-1 px-2 py-0.5">
+                          <Clock className="w-3 h-3" /> PENDING VERIFICATION
+                        </Badge>
+                      )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRunAiVerification(selectedArtistForId._id)}
+                        disabled={
+                          isVerifyingAi ||
+                          !selectedArtistForId.nationalId?.frontImage ||
+                          !selectedArtistForId.nationalId?.liveFacePhoto
+                        }
+                        className="h-6 text-[10px] px-2 gap-1 bg-white hover:bg-muted"
+                      >
+                        {isVerifyingAi ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" /> Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-3 h-3" /> Re-run AI Check
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Metrics Breakdown */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="bg-white/80 border rounded-lg p-2">
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        Document Legality
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          selectedArtistForId.nationalId.autoVerification.isLegalId
+                            ? "text-emerald-700"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {selectedArtistForId.nationalId.autoVerification.isLegalId
+                          ? "Valid Official ID"
+                          : "Invalid Document"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Score: {selectedArtistForId.nationalId.autoVerification.documentLegalityScore || 0}%
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 border rounded-lg p-2">
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        Face Match (Biometrics)
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          selectedArtistForId.nationalId.autoVerification.isSamePerson
+                            ? "text-emerald-700"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {selectedArtistForId.nationalId.autoVerification.isSamePerson
+                          ? "Same Person"
+                          : "Mismatch"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Confidence: {selectedArtistForId.nationalId.autoVerification.faceMatchConfidence || 0}%
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 border rounded-lg p-2">
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        ID Number Check
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          selectedArtistForId.nationalId.autoVerification.idNumberMatches
+                            ? "text-emerald-700"
+                            : "text-amber-700"
+                        }`}
+                      >
+                        {selectedArtistForId.nationalId.autoVerification.idNumberMatches
+                          ? "Matches Entry"
+                          : "Manual Check"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        {selectedArtistForId.nationalId.autoVerification.extractedIdNumber || "—"}
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 border rounded-lg p-2">
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        Engine &amp; Liveness
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {selectedArtistForId.nationalId.autoVerification.isLivePhoto
+                          ? "Live Selfie"
+                          : "Camera Check"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block truncate">
+                        {selectedArtistForId.nationalId.autoVerification.engine === "gemini_multimodal_ai"
+                          ? "Gemini AI Vision"
+                          : "Biometric Fallback"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Analysis Explanation */}
+                  <div className="bg-white/90 border rounded-lg p-2.5 text-[11px] space-y-1">
+                    {selectedArtistForId.nationalId.autoVerification.documentLegalityReason && (
+                      <p className="text-muted-foreground">
+                        <strong className="text-foreground">Document Analysis:</strong>{" "}
+                        {selectedArtistForId.nationalId.autoVerification.documentLegalityReason}
+                      </p>
+                    )}
+                    {selectedArtistForId.nationalId.autoVerification.faceMatchReason && (
+                      <p className="text-muted-foreground">
+                        <strong className="text-foreground">Facial Comparison:</strong>{" "}
+                        {selectedArtistForId.nationalId.autoVerification.faceMatchReason}
+                      </p>
+                    )}
+                    {selectedArtistForId.nationalId.autoVerification.rejectionReason && (
+                      <div className="mt-1.5 p-2 bg-red-100/80 border border-red-300 rounded text-red-900 font-medium">
+                        Alert: {selectedArtistForId.nationalId.autoVerification.rejectionReason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 p-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-950">
+                        Automated AI Verification
+                      </p>
+                      <p className="text-[11px] text-indigo-800">
+                        Run instant AI forensic verification on this applicant&apos;s ID scans and live selfie.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleRunAiVerification(selectedArtistForId._id)}
+                    disabled={
+                      isVerifyingAi ||
+                      !selectedArtistForId.nationalId?.frontImage ||
+                      !selectedArtistForId.nationalId?.liveFacePhoto
+                    }
+                    className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1"
+                  >
+                    {isVerifyingAi ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" /> Run AI Verification
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
               {/* Anti-Fraud Comparison Note */}
               <div className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-3 flex items-start gap-2.5 text-indigo-950 text-xs">
                 <UserCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
@@ -802,13 +1067,15 @@ export default function ArtistApprovals() {
         </DialogContent>
       </Dialog>
 
-      {/* Warning Dialog: Approving Artist Without ID or Live Face */}
+      {/* Warning Dialog: Approving Artist Without Complete/Verified ID or Live Face */}
       <Dialog open={approveWarningModalOpen} onOpenChange={setApproveWarningModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Verification Incomplete
+              {artistToApproveWithWarning?.nationalId?.autoVerification?.status === "rejected"
+                ? "AI Verification Flagged Issues"
+                : "Verification Incomplete"}
             </DialogTitle>
             <DialogDescription>
               Anti-scam verification warning before approval.
@@ -819,7 +1086,7 @@ export default function ArtistApprovals() {
             <div className="space-y-3 py-2 text-xs">
               <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3.5 space-y-2">
                 <p className="font-semibold text-amber-950">
-                  {artistToApproveWithWarning.firstName} {artistToApproveWithWarning.lastName} has not submitted all required identity checks:
+                  {artistToApproveWithWarning.firstName} {artistToApproveWithWarning.lastName} has verification issues:
                 </p>
 
                 <ul className="space-y-1 pl-1">
@@ -841,10 +1108,20 @@ export default function ArtistApprovals() {
                       Missing Live Face Selfie verification
                     </li>
                   )}
+                  {artistToApproveWithWarning.nationalId?.autoVerification?.status === "rejected" && (
+                    <li className="flex items-start gap-1.5 text-red-700 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0" />
+                      <span>
+                        AI Flagged:{" "}
+                        {artistToApproveWithWarning.nationalId.autoVerification.rejectionReason ||
+                          "Face mismatch or invalid government ID detected."}
+                      </span>
+                    </li>
+                  )}
                 </ul>
 
                 <p className="text-amber-800 font-medium pt-1">
-                  Are you certain you want to bypass these verification requirements and approve this artist anyway?
+                  Are you certain you want to bypass these verification alerts and approve this artist anyway?
                 </p>
               </div>
             </div>
