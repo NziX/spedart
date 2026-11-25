@@ -38,7 +38,7 @@ export default function ArtistJourney() {
                 <div className='flex justify-between items-center'>
                     <Button
                         variant='secondary'
-                        onClick={() => setActiveStep('national_id')}
+                        onClick={() => setActiveStep('live_face_verification')}
                     >
                         Previous
                     </Button>

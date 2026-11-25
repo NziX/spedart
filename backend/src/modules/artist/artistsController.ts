@@ -417,6 +417,58 @@ export default class ArtistsController {
     }
   }
 
+  public static async submitLiveFace(req: Request, res: Response) {
+    try {
+      const { email, liveFacePhoto } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email address is required.',
+        });
+      }
+
+      if (!liveFacePhoto) {
+        return res.status(400).json({
+          success: false,
+          message: 'Live face verification capture is required.',
+        });
+      }
+
+      const artist = await Artist.findOne({
+        email: { $regex: new RegExp(`^${email.trim()}$`, 'i') },
+      });
+
+      if (!artist) {
+        return res.status(404).json({
+          success: false,
+          message: 'Artist not found.',
+        });
+      }
+
+      if (!artist.nationalId) {
+        artist.nationalId = {} as any;
+      }
+
+      artist.nationalId!.liveFacePhoto = liveFacePhoto.trim();
+      artist.nationalId!.faceVerifiedAt = new Date();
+
+      await artist.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Live face capture verified and saved successfully.',
+        nationalId: artist.nationalId,
+      });
+    } catch (error: any) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: error?.message || 'Internal server error while saving live face capture.',
+      });
+    }
+  }
+
   public static async completeOnboardingProfile(req: Request, res: Response) {
     try {
       const { email, bio, profilePicture } = req.body;

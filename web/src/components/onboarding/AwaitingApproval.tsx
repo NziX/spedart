@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
+import { Clock, CheckCircle2, ShieldCheck, UserCheck, Camera } from "lucide-react";
 import { Button } from "../ui/button";
 
 export default function AwaitingApproval() {
@@ -38,6 +38,11 @@ export default function AwaitingApproval() {
         <div className="flex items-center gap-2.5 text-emerald-800 text-xs sm:text-sm">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>National ID documents (Front &amp; Back scans) submitted</span>
+        </div>
+
+        <div className="flex items-center gap-2.5 text-emerald-800 text-xs sm:text-sm">
+          <Camera className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Live face verification selfie confirmed</span>
         </div>
 
         <div className="flex items-center gap-2.5 text-emerald-800 text-xs sm:text-sm">

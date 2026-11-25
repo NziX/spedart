@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import axios from "@/lib/axios.config";
 import { Artist } from "@/types";
 import { notifications } from "@mantine/notifications";
-import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle, Eye, ShieldCheck, CreditCard, ExternalLink } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, AlertCircle, Trash2, AlertTriangle, Eye, ShieldCheck, CreditCard, ExternalLink, Camera, UserCheck } from "lucide-react";
 
 type ArtistStatus = "pending" | "approved" | "rejected";
 
@@ -86,7 +86,8 @@ export default function ArtistApprovals() {
   const handleApproveInitiation = (artist: Artist) => {
     const hasFront = Boolean(artist.nationalId?.frontImage);
     const hasBack = Boolean(artist.nationalId?.backImage);
-    if (!hasFront || !hasBack) {
+    const hasLiveFace = Boolean(artist.nationalId?.liveFacePhoto);
+    if (!hasFront || !hasBack || !hasLiveFace) {
       setArtistToApproveWithWarning(artist);
       setApproveWarningModalOpen(true);
       return;
@@ -220,11 +221,12 @@ export default function ArtistApprovals() {
       ),
     },
     {
-      title: "National ID & Scans",
+      title: "National ID & Face Verification",
       key: "nationalId",
       Element: ({ row }) => {
         const hasFront = Boolean(row.nationalId?.frontImage);
         const hasBack = Boolean(row.nationalId?.backImage);
+        const hasLiveFace = Boolean(row.nationalId?.liveFacePhoto);
         const hasId = hasFront && hasBack;
 
         return (
@@ -243,6 +245,16 @@ export default function ArtistApprovals() {
                   <AlertTriangle className="w-3 h-3 text-red-500" /> No ID Uploaded
                 </Badge>
               )}
+
+              {hasLiveFace ? (
+                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <Camera className="w-3 h-3 text-blue-600" /> Live Face Verified
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] px-1.5 py-0 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 text-amber-500" /> Live Face Missing
+                </Badge>
+              )}
             </div>
 
             {row.nationalId?.idNumber && (
@@ -251,7 +263,7 @@ export default function ArtistApprovals() {
               </p>
             )}
 
-            {(hasFront || hasBack) ? (
+            {(hasFront || hasBack || hasLiveFace) ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -261,7 +273,7 @@ export default function ArtistApprovals() {
                 }}
                 className="h-6 text-[11px] px-2 gap-1 text-indigo-700 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100"
               >
-                <Eye className="w-3 h-3" /> Inspect ID Scans
+                <Eye className="w-3 h-3" /> Inspect ID &amp; Face Verification
               </Button>
             ) : null}
           </div>
@@ -596,21 +608,21 @@ export default function ArtistApprovals() {
         </DialogContent>
       </Dialog>
 
-      {/* National ID Inspection Dialog */}
+      {/* National ID & Face Verification Inspection Dialog */}
       <Dialog open={idModalOpen} onOpenChange={setIdModalOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-primary">
               <ShieldCheck className="w-5 h-5 text-indigo-600" />
-              National ID Verification Details
+              National ID &amp; Live Face Verification Details
             </DialogTitle>
             <DialogDescription>
-              Review the official ID scans provided by this artist to verify identity and prevent fraud.
+              Review the official ID scans and live webcam selfie to confirm that the person matches their document.
             </DialogDescription>
           </DialogHeader>
 
           {selectedArtistForId && (
-            <div className="space-y-5 py-2">
+            <div className="space-y-4 py-2">
               {/* Applicant Info Summary */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-muted/40 p-3.5 rounded-lg border text-xs">
                 <div>
@@ -644,14 +656,25 @@ export default function ArtistApprovals() {
                 </div>
               </div>
 
-              {/* ID Scans Comparison (Front & Back) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Front Scan */}
-                <div className="border rounded-xl p-3.5 bg-card space-y-2">
+              {/* Anti-Fraud Comparison Note */}
+              <div className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-3 flex items-start gap-2.5 text-indigo-950 text-xs">
+                <UserCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Face-to-ID Authenticity Check</p>
+                  <p className="text-indigo-800 text-[11px] mt-0.5">
+                    Compare the portrait on the <strong>Front ID card</strong> with the <strong>Live Face Selfie</strong> to ensure the applicant is not an impersonator or scammer using someone else&apos;s stolen ID.
+                  </p>
+                </div>
+              </div>
+
+              {/* 3-Column Verification Grid: Front ID, Back ID, Live Face Capture */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                {/* 1. Front Scan */}
+                <div className="border rounded-xl p-3 bg-card space-y-2">
                   <div className="flex items-center justify-between pb-1.5 border-b">
                     <span className="text-xs font-semibold flex items-center gap-1.5">
                       <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
-                      1. Front of National ID
+                      1. Front of ID
                     </span>
                     {selectedArtistForId.nationalId?.frontImage && (
                       <a
@@ -660,33 +683,33 @@ export default function ArtistApprovals() {
                         rel="noreferrer"
                         className="text-[11px] text-primary hover:underline flex items-center gap-1"
                       >
-                        Open Full <ExternalLink className="w-3 h-3" />
+                        Open <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
 
                   {selectedArtistForId.nationalId?.frontImage ? (
-                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1">
+                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1 min-h-[160px]">
                       <img
                         src={selectedArtistForId.nationalId.frontImage}
                         alt="Front ID Scan"
-                        className="w-full h-auto max-h-64 object-contain rounded"
+                        className="w-full h-auto max-h-56 object-contain rounded"
                       />
                     </div>
                   ) : (
-                    <div className="h-44 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
-                      <AlertCircle className="w-6 h-6 mb-1 text-amber-500" />
+                    <div className="h-40 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
+                      <AlertCircle className="w-5 h-5 mb-1 text-amber-500" />
                       Front scan not uploaded
                     </div>
                   )}
                 </div>
 
-                {/* Back Scan */}
-                <div className="border rounded-xl p-3.5 bg-card space-y-2">
+                {/* 2. Back Scan */}
+                <div className="border rounded-xl p-3 bg-card space-y-2">
                   <div className="flex items-center justify-between pb-1.5 border-b">
                     <span className="text-xs font-semibold flex items-center gap-1.5">
                       <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
-                      2. Back of National ID
+                      2. Back of ID
                     </span>
                     {selectedArtistForId.nationalId?.backImage && (
                       <a
@@ -695,23 +718,58 @@ export default function ArtistApprovals() {
                         rel="noreferrer"
                         className="text-[11px] text-primary hover:underline flex items-center gap-1"
                       >
-                        Open Full <ExternalLink className="w-3 h-3" />
+                        Open <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
 
                   {selectedArtistForId.nationalId?.backImage ? (
-                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1">
+                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1 min-h-[160px]">
                       <img
                         src={selectedArtistForId.nationalId.backImage}
                         alt="Back ID Scan"
-                        className="w-full h-auto max-h-64 object-contain rounded"
+                        className="w-full h-auto max-h-56 object-contain rounded"
                       />
                     </div>
                   ) : (
-                    <div className="h-44 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
-                      <AlertCircle className="w-6 h-6 mb-1 text-amber-500" />
+                    <div className="h-40 rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4">
+                      <AlertCircle className="w-5 h-5 mb-1 text-amber-500" />
                       Back scan not uploaded
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Live Face Capture (FaceTime Selfie) */}
+                <div className="border-2 border-blue-200 rounded-xl p-3 bg-blue-50/20 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-blue-200">
+                    <span className="text-xs font-semibold flex items-center gap-1.5 text-blue-900">
+                      <Camera className="w-3.5 h-3.5 text-blue-600" />
+                      3. Live Face Capture
+                    </span>
+                    {selectedArtistForId.nationalId?.liveFacePhoto && (
+                      <a
+                        href={selectedArtistForId.nationalId.liveFacePhoto}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        Open <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  {selectedArtistForId.nationalId?.liveFacePhoto ? (
+                    <div className="rounded-lg overflow-hidden border bg-black/5 flex items-center justify-center p-1 min-h-[160px]">
+                      <img
+                        src={selectedArtistForId.nationalId.liveFacePhoto}
+                        alt="Live Face Verification"
+                        className="w-full h-auto max-h-56 object-contain rounded"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-40 rounded-lg border-2 border-dashed border-amber-300 flex flex-col items-center justify-center text-muted-foreground text-xs text-center p-4 bg-amber-50/50">
+                      <AlertCircle className="w-5 h-5 mb-1 text-amber-500" />
+                      Live selfie not captured
                     </div>
                   )}
                 </div>
@@ -744,13 +802,13 @@ export default function ArtistApprovals() {
         </DialogContent>
       </Dialog>
 
-      {/* Warning Dialog: Approving Artist Without ID */}
+      {/* Warning Dialog: Approving Artist Without ID or Live Face */}
       <Dialog open={approveWarningModalOpen} onOpenChange={setApproveWarningModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              National ID Missing
+              Verification Incomplete
             </DialogTitle>
             <DialogDescription>
               Anti-scam verification warning before approval.
@@ -759,15 +817,34 @@ export default function ArtistApprovals() {
 
           {artistToApproveWithWarning && (
             <div className="space-y-3 py-2 text-xs">
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3.5 space-y-1.5">
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3.5 space-y-2">
                 <p className="font-semibold text-amber-950">
-                  {artistToApproveWithWarning.firstName} {artistToApproveWithWarning.lastName} has not uploaded both front and back ID scans.
+                  {artistToApproveWithWarning.firstName} {artistToApproveWithWarning.lastName} has not submitted all required identity checks:
                 </p>
-                <p>
-                  To protect creators and avoid scammers, artists should submit official government ID scans before account activation.
-                </p>
-                <p className="font-medium text-amber-800">
-                  Are you certain you want to bypass ID verification and approve this artist anyway?
+
+                <ul className="space-y-1 pl-1">
+                  {!artistToApproveWithWarning.nationalId?.frontImage && (
+                    <li className="flex items-center gap-1.5 text-amber-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                      Missing Front of National ID scan
+                    </li>
+                  )}
+                  {!artistToApproveWithWarning.nationalId?.backImage && (
+                    <li className="flex items-center gap-1.5 text-amber-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                      Missing Back of National ID scan
+                    </li>
+                  )}
+                  {!artistToApproveWithWarning.nationalId?.liveFacePhoto && (
+                    <li className="flex items-center gap-1.5 text-amber-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                      Missing Live Face Selfie verification
+                    </li>
+                  )}
+                </ul>
+
+                <p className="text-amber-800 font-medium pt-1">
+                  Are you certain you want to bypass these verification requirements and approve this artist anyway?
                 </p>
               </div>
             </div>

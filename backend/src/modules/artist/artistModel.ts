@@ -25,6 +25,8 @@ export interface IArtistDocument extends mongoose.Document {
     idNumber?: string;
     frontImage?: string;
     backImage?: string;
+    liveFacePhoto?: string;
+    faceVerifiedAt?: Date;
     submittedAt?: Date;
     isVerified?: boolean;
   };
@@ -111,6 +113,8 @@ const artistSchema = new mongoose.Schema(
       idNumber: { type: String, default: null },
       frontImage: { type: String, default: null },
       backImage: { type: String, default: null },
+      liveFacePhoto: { type: String, default: null },
+      faceVerifiedAt: { type: Date, default: null },
       submittedAt: { type: Date, default: null },
       isVerified: { type: Boolean, default: false },
     },

@@ -39,6 +39,7 @@ router.post('/verify-phone', ArtistsController.verifyPhone);
 router.post('/resend-email-code', ArtistsController.resendEmailCode);
 router.post('/resend-phone-code', ArtistsController.resendPhoneCode);
 router.post('/submit-national-id', ArtistsController.submitNationalId);
+router.post('/submit-live-face', ArtistsController.submitLiveFace);
 router.post('/complete-profile', ArtistsController.completeOnboardingProfile);
 
 const artistsRouter = router;

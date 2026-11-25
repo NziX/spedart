@@ -92,12 +92,12 @@ export default function NationalIdVerification() {
         title: "ID Documents Saved",
         message:
           data?.message ||
-          "Your National ID has been saved. Next, let fans know about your artist journey.",
+          "Your National ID has been saved. Next, verify your face live to confirm your identity.",
         color: "teal",
       });
 
-      // Advance to artist journey screen
-      setActiveStep("artist_journey");
+      // Advance to live face verification screen
+      setActiveStep("live_face_verification");
     } catch (error: any) {
       notifications.show({
         title: "Submission Failed",
@@ -331,7 +331,7 @@ export default function NationalIdVerification() {
               </>
             ) : (
               <>
-                Save ID &amp; Continue to Artist Journey <ArrowRight className="w-4 h-4" />
+                Save ID &amp; Continue to Live Face Check <ArrowRight className="w-4 h-4" />
               </>
             )}
           </Button>

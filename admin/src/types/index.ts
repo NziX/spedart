@@ -23,6 +23,8 @@ export interface Artist extends Base {
 		idNumber?: string;
 		frontImage?: string;
 		backImage?: string;
+		liveFacePhoto?: string;
+		faceVerifiedAt?: string;
 		submittedAt?: string;
 		isVerified?: boolean;
 	};
