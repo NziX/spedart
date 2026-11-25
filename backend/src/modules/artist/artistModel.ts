@@ -136,7 +136,7 @@ const artistSchema = new mongoose.Schema(
       autoVerification: {
         status: {
           type: String,
-          enum: ["passed", "rejected", "manual_review_required", "pending"],
+          enum: [null, "passed", "rejected", "manual_review_required", "pending"],
           default: null,
         },
         isLegalId: { type: Boolean, default: false },
